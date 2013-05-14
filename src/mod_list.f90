@@ -1,4 +1,5 @@
 module mod_list
+    use mod_fillvalue
     implicit none
     ! this module implements a linked list
 
@@ -14,7 +15,7 @@ module mod_list
         procedure getElementAt              ! returns an element of the list with a given position
         procedure getIterator               ! returns a iterator over all elements
         ! deallocate all elements
-        procedure :: finalize => finalize_list
+        procedure removeAll
     end type
     ! define the constructor for list
     interface list
@@ -38,9 +39,13 @@ module mod_list
         class(*), pointer :: value
         class(element), pointer :: nextElement
         class(element), pointer :: prevElement
+        logical :: valueIsCopy
         ! procedures
         contains
         procedure getReal       ! return the value as real
+        procedure getRealK8     ! return the value as real(kind=8)
+        procedure getInteger    ! return the value as integer
+        procedure getIntegerK8  ! return the value as integer(kind=8)
     end type
     ! define the constructor for list
     interface element
@@ -65,16 +70,25 @@ module mod_list
     end function
 
     ! add an element to the end of the list
-    subroutine add(this, value)
+    subroutine add(this, value, copy)
         class(list) :: this
         class(*), target :: value
+        logical, optional :: copy
+        logical :: copyValue
+
+        ! copy or link?
+        if (present(copy)) then
+            copyValue = copy
+        else
+            copyValue = .false.
+        end if
 
         ! create a new element
         if (this%length == 0) then
-            this%firstElement => constructor_element(value, null(), null())
+            this%firstElement => constructor_element(value, null(), null(), copyValue)
             this%lastElement => this%firstElement
         else
-            this%lastElement%nextElement => constructor_element(value, this%lastElement, null())
+            this%lastElement%nextElement => constructor_element(value, this%lastElement, null(), copyValue)
             this%lastElement => this%lastElement%nextElement
         end if
         ! count the elements
@@ -134,7 +148,7 @@ module mod_list
     end function
 
     ! finalize the list, clean up the memory
-    subroutine finalize_list(this)
+    subroutine removeAll(this)
         class(list) :: this
         class(iterator), pointer :: iter
         class(element), pointer :: elem
@@ -144,9 +158,18 @@ module mod_list
             iter => this%getIterator()
             do while(iter%hasNext())
                 elem => iter%getNext()
+                ! deallocate the value, if it is a copy
+                if (elem%valueIsCopy) then
+                    deallocate(elem%value)
+                end if
                 deallocate(elem)
             end do
             deallocate(iter)
+
+            ! set the pointers back to null
+            this%firstElement => null()
+            this%lastElement => null()
+            this%length = 0
         end if
     end subroutine
 
@@ -187,17 +210,25 @@ module mod_list
     ! then the procedures for the elements ------------------------------------
 
     ! a constructor for the element
-    function constructor_element(value, prev, next)
+    function constructor_element(value, prev, next, copy)
         class(*), target :: value
         class(element), pointer :: next, prev
         class(element), pointer :: constructor_element
+        logical, optional :: copy
 
         ! allocate memory for the new list
         allocate(constructor_element)
         ! initialize the pointers
         constructor_element%nextElement => next
         constructor_element%prevElement => prev
-        constructor_element%value => value
+        ! copy the value or create a pointer to it
+        if (present(copy) .and. copy .eqv. .true.) then
+            allocate(constructor_element%value, source=value)
+            constructor_element%valueIsCopy = .true.
+        else
+            constructor_element%value => value
+            constructor_element%valueIsCopy = .false.
+        end if
     end function
 
     ! return the value stored in the element as real
@@ -212,8 +243,61 @@ module mod_list
             type is (real)
                 getReal = value
             class default
-                print*, "ERROR: wrong element type in element%getReal"
-                call exit(1)
+                getReal = fstd_fill_real
+        end select
+        ! free the pointer
+        nullify(value)
+    end function
+
+    ! return the value stored in the element as real(kind=8)
+    function getRealK8(this)
+        class(element) :: this
+        real (kind=8) :: getRealK8
+        ! create a pointer to the value, the associate block in gfortran 4.8 don't works
+        class(*), pointer :: value
+        value => this%value
+        ! check the type
+        select type (value)
+            type is (real (kind=8))
+                getRealK8 = value
+            class default
+                getRealK8 = fstd_fill_realk8
+        end select
+        ! free the pointer
+        nullify(value)
+    end function
+
+    ! return the value stored in the element as real
+    function getInteger(this)
+        class(element) :: this
+        integer :: getInteger
+        ! create a pointer to the value, the associate block in gfortran 4.8 don't works
+        class(*), pointer :: value
+        value => this%value
+        ! check the type
+        select type (value)
+            type is (integer)
+                getInteger = value
+            class default
+                getInteger = fstd_fill_int
+        end select
+        ! free the pointer
+        nullify(value)
+    end function
+
+    ! return the value stored in the element as real(kind=8)
+    function getIntegerK8(this)
+        class(element) :: this
+        integer (kind=8) :: getIntegerK8
+        ! create a pointer to the value, the associate block in gfortran 4.8 don't works
+        class(*), pointer :: value
+        value => this%value
+        ! check the type
+        select type (value)
+            type is (integer (kind=8))
+                getIntegerK8 = value
+            class default
+                getIntegerK8 = fstd_fill_intk8
         end select
         ! free the pointer
         nullify(value)

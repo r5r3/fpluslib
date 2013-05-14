@@ -6,21 +6,25 @@ program test_list
     class(element), pointer :: testelement
     class(iterator), pointer :: testiter
     integer :: i
+    real (kind=8) :: testnumber
 
     ! create a new list
     testlist => list()
 
     ! add two elements
-    call testlist%add(1.2)
-    call testlist%add(1.3)
-    call testlist%add(1.5)
-    call testlist%add(1.7)
-    call testlist%add(1.8)
-    call testlist%add(2.7)
+    print*, ""
+    print*, "Some elements are added to the list, the last is an integer (kind=8)"
+    print*, ""
+    call testlist%add(1)
+    call testlist%add(2)
+    call testlist%add(4)
+    call testlist%add(7)
+    call testlist%add(9)
+    call testlist%add(3_8)
 
     print*, "Show the first and the last element"
-    print*, "The first element:", testlist%firstElement%getReal()
-    print*, "The last element: ", testlist%lastElement%getReal()
+    print*, "The first element:", testlist%firstElement%getInteger()
+    print*, "The last element: ", testlist%lastElement%getIntegerK8()
     print*, ""
 
     print*, "Use the slow getElementAt function to iterate through the list"
@@ -29,7 +33,7 @@ program test_list
         if (.not.associated(testelement)) then
             print*, "No element at position ", i
         else
-            print*, "The element at position", i, testelement%getReal()
+            print*, "The element at position", i, testelement%getInteger()
         end if
     end do
     print*, ""
@@ -39,7 +43,7 @@ program test_list
     testiter => testlist%getIterator()
     do while(testiter%hasNext())
         testelement => testiter%getNext()
-        print*, "Next element: ", testelement%getReal()
+        print*, "Next element: ", testelement%getInteger()
     end do
     deallocate(testiter)
     print*, ""
@@ -48,13 +52,31 @@ program test_list
     testiter => testlist%getIterator(1)
     do while(testiter%hasNext())
         testelement => testiter%getNext()
-        print*, "Next element: ", testelement%getReal()
+        print*, "Next element: ", testelement%getInteger()
     end do
     deallocate(testiter)
     print*, ""
 
-    ! free the memory, finalize is not called automatically!
-    call testlist%finalize()
+    ! remove all elements
+    call testlist%removeAll()
+
+    ! create random numbers in a loop
+    do i = 1, 5
+        call random_number(testnumber)
+        call testlist%add(testnumber)
+        call testlist%add(testnumber, copy=.true.)
+    end do
+    print*, "Five random numbers, once added as pointers, once added as copy"
+    testiter => testlist%getIterator()
+    do while(testiter%hasNext())
+        testelement => testiter%getNext()
+        print*, "Next element: ", testelement%getRealK8()
+    end do
+    deallocate(testiter)
+    print*, ""
+
+    ! remove all elements before deallocation, finalization is not yet supported!
+    call testlist%removeAll()
     deallocate(testlist)
 
 end program test_list

@@ -24,8 +24,8 @@ tests: bin build bin/test-up-1 bin/test-list
 bin/test-up-1: testsrc/test-up-1.f90
 	$(FC) $(FCFLAGS) -o $@ $<
 
-bin/test-list: build/mod_list.o build/test-list.o
-	$(FC) $(FCFLAGS) -o $@ build/mod_list.o build/test-list.o
+bin/test-list: build/mod_fillvalue.o build/mod_list.o build/test-list.o
+	$(FC) $(FCFLAGS) -o $@ build/mod_fillvalue.o build/mod_list.o build/test-list.o
 
 # rule to compile fortran files
 build/%.o: src/%.f90
