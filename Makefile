@@ -1,7 +1,7 @@
 #some variables
 # use intel fortran compiler if available
-HAVEIFORT=$(shell which ifort ; echo $?)
-ifeq ($(HAVEIFORT),0)
+HAVEIFORT=$(shell which ifort)
+ifneq ($(findstring ifort,$(HAVEIFORT)),)
 	FC=ifort
 	FCFLAGS=-module include -g
 else
