@@ -53,8 +53,8 @@ module mod_list
     end interface
 
 
-    ! implementation of the procedures
-    contains
+! implementation of the procedures
+contains
 
     ! at first the procedures for the list ------------------------------------
 

@@ -1,6 +1,6 @@
 #some variables
 FC=gfortran-mp-4.8
-FCFLAGS=-Jbuild
+FCFLAGS=-Jinclude -g
 
 # compile everything
 all: bin include lib build
@@ -19,13 +19,19 @@ lib:
 	mkdir -p lib
 	
 # compile tests
-tests: bin build bin/test-up-1 bin/test-list
+tests: bin build include bin/test-up-1 bin/test-up-2 bin/test-list bin/test-map
 
 bin/test-up-1: testsrc/test-up-1.f90
 	$(FC) $(FCFLAGS) -o $@ $<
 
+bin/test-up-2: testsrc/test-up-2.f90
+	$(FC) $(FCFLAGS) -o $@ $<
+
 bin/test-list: build/mod_fillvalue.o build/mod_list.o build/test-list.o
 	$(FC) $(FCFLAGS) -o $@ build/mod_fillvalue.o build/mod_list.o build/test-list.o
+
+bin/test-map: build/mod_map.o testsrc/test-map.f90
+	$(FC) $(FCFLAGS) -o $@ build/mod_map.o testsrc/test-map.f90
 
 # rule to compile fortran files
 build/%.o: src/%.f90
