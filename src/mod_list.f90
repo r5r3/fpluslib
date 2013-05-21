@@ -19,7 +19,7 @@ module mod_list
     end type
     ! define the constructor for list
     interface list
-        procedure constructor_list
+        module procedure constructor_list
     end interface
 
 
@@ -49,7 +49,7 @@ module mod_list
     end type
     ! define the constructor for list
     interface element
-        procedure constructor_element
+        module procedure constructor_element
     end interface
 
 

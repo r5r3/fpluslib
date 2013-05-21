@@ -20,7 +20,7 @@ program test_map
     ! add is to the map
     k2 = 1.1
     v2 = 2.2
-    call testmap%add(k2,v2,.true.)
-    !call testmap%add(key,value, .true.)
+    call testmap%add(k2, v2, .true.)
+    call testmap%add(key, value, .true.)
 
 end program test_map

@@ -1,6 +1,6 @@
 #some variables
-FC=gfortran-mp-4.8
-FCFLAGS=-Jinclude -g
+FC=ifort
+FCFLAGS=-module include -g
 
 # compile everything
 all: bin include lib build

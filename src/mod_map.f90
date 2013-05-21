@@ -13,7 +13,7 @@ module mod_map
     end type
     ! define the constructor for the map
     interface map
-        procedure constructor_map
+        module procedure constructor_map
     end interface
 
     ! the hash table consists of an arrayof nodes where each node can have children
@@ -30,7 +30,7 @@ module mod_map
     end type
     ! define the constructor for the node
     interface node
-        procedure constructor_node
+        module procedure constructor_node
     end interface
 
 ! the implementation of the procedures follows
