@@ -1,6 +1,13 @@
 #some variables
-FC=ifort
-FCFLAGS=-module include -g
+# use intel fortran compiler if available
+HAVEIFORT=$(shell which ifort ; echo $?)
+ifeq ($(HAVEIFORT),0)
+	FC=ifort
+	FCFLAGS=-module include -g
+else
+	FC=gfortran-mp-4.8
+	FCFLAGS=-Jinclude -g
+endif
 
 # compile everything
 all: bin include lib build
