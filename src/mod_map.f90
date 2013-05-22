@@ -284,7 +284,7 @@ contains
     end function
 
     ! free the memory allocated inside of this node
-    subroutine release(this)
+    recursive subroutine release(this)
         class(node) :: this
         ! clean the node itself
         if (this%valueIsCopy) then
