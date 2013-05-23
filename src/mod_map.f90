@@ -11,6 +11,7 @@ module mod_map
         procedure add                       ! add an element to the new map
         procedure positionForHash           ! calculate the index of the hash key in the table
         procedure printContent              ! print the table structure for debuging
+        procedure get                       ! get one object from the map
         ! deallocate all elements
         procedure removeAll
     end type
@@ -265,6 +266,41 @@ contains
         deallocate (this%table)
         this%length = 0
     end subroutine
+
+    ! return an object stored with a given key
+    function get(this, key)
+        class(map) :: this
+        class(*), intent(in) :: key
+        class(*), pointer :: get
+
+        ! local variables
+        integer (kind=8) :: hash
+        integer :: pos
+        class(node), pointer :: currentnode
+
+        ! if nothing is found, return a null-pointer
+        get => null()
+        ! calculate the hash code for the key
+        hash = calculateHash(key)
+        ! find the value in the table
+        pos = this%positionForHash(hash)
+        if (this%table(pos)%length > 0) then
+            currentnode => this%table(pos)%thenode
+            do
+                ! is the current node the search node
+                if (currentnode%hash == hash) then
+                    get => currentnode%value
+                    exit
+                end if
+                ! not found? try the next one
+                if (.not.associated(currentnode%next)) then
+                    exit
+                else
+                    currentnode => currentnode%next
+                end if
+            end do
+        end if
+    end function
 
     ! procedures of the nodepointer -------------------------------------------
 

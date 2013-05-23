@@ -1,18 +1,22 @@
 program test_map
+    use mod_fstd
     use mod_map
     implicit none
 
     ! a variable for the new map
     class(map), pointer :: testmap
     character (len=50), allocatable :: key, value
-    real (kind=8) :: v2
+    real (kind=4) :: v2
+    real (kind=8) :: v8
     integer :: i
+    integer (kind=8) :: i8
+    class(*), pointer :: testval
 
     allocate(key)
     allocate(value)
 
     ! create the map
-    testmap => map(7)
+    testmap => map(3)
 
     ! create key and value
     key = "the key ."
@@ -27,16 +31,16 @@ program test_map
     call testmap%add(0.1, v2, .true.)
     call testmap%printContent()
 
-    call testmap%add(1.1, v2, .true.)
+    call testmap%add(1.1, 11.0, .true.)
     call testmap%printContent()
 
-    call testmap%add(2_8, v2, .true.)
+    call testmap%add(2_8, 97, .true.)
     call testmap%printContent()
 
-    call testmap%add(2, v2, .true.)
+    call testmap%add(2, 18_8, .true.)
     call testmap%printContent()
 
-    call testmap%add(7.3, v2, .true.)
+    call testmap%add(7.3, 73.0_8, .true.)
     call testmap%printContent()
 
     ! any memory holes?
@@ -44,8 +48,18 @@ program test_map
         call testmap%add(22_8, v2, .true.)
     end do
 
-    ! clean up
+    ! get some objects from the map
     call testmap%printContent()
+    v2 = toReal(testmap%get(1.1))
+    print*, "Key:",1.1,"Value:",v2
+    v8 = toRealK8(testmap%get(7.3))
+    print*, "Key:",7.3,"Value:",v8
+    i = toInteger(testmap%get(2_8))
+    print*, "Key:",2_8,"Value:",i
+    i8 = toIntegerK8(testmap%get(2))
+    print*, "Key:",2,"Value:",i8
+
+    ! clean up
     call testmap%removeAll()
     call testmap%printContent()
 

@@ -37,8 +37,8 @@ bin/test-up-2: testsrc/test-up-2.f90
 bin/test-list: build/mod_fillvalue.o build/mod_list.o build/test-list.o
 	$(FC) $(FCFLAGS) -o $@ build/mod_fillvalue.o build/mod_list.o build/test-list.o
 
-bin/test-map: build/mod_map.o testsrc/test-map.f90
-	$(FC) $(FCFLAGS) -o $@ build/mod_map.o testsrc/test-map.f90
+bin/test-map: build/mod_fstd.o build/mod_map.o testsrc/test-map.f90
+	$(FC) $(FCFLAGS) -o $@ build/mod_fstd.o build/mod_map.o testsrc/test-map.f90
 
 # rule to compile fortran files
 build/%.o: src/%.f90
