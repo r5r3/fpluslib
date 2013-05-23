@@ -49,6 +49,7 @@ module mod_map
 contains
 
     ! procedures that are not bound to a type ---------------------------------
+
     ! a very simple hash function, see sdbm on http://www.cse.yorku.ca/~oz/hash.html
     function calculateHash(key)
         integer (kind=8) :: calculateHash
@@ -58,38 +59,50 @@ contains
         integer :: length
         integer (kind=1), dimension(:), allocatable :: chars
 
+        ! use sdbm
+        ! transfer the content of the key to an integer array and call calculateSDBMhash
+        ! the usage of the explicit conversion function real and int is needed by the ifort compiler
+        calculateHash = 0
         select type (key)
             type is (character (len=*))
-                ! use sdbm
-                calculateHash = 0
                 length = len_trim(key)
-                ! transfer the contents of the string to an integer array
                 allocate(chars(length))
                 chars = transfer(key, chars)
-                calculateHash = calculateSDBMhash(chars)
-                ! free the memory
-                deallocate(chars)
+                calculateHash = calculateSDBMhash(chars, length)
+            type is (real (kind=4))
+                allocate(chars(4))
+                chars = transfer(real(key,4), chars)
+                calculateHash = calculateSDBMhash(chars, 4)
             type is (real (kind=8))
-                ! use sdbm
-                calculateHash = 0
-                ! transfer the contents of the real to an integer array
                 allocate(chars(8))
-                chars = transfer(key, chars)
-                calculateHash = calculateSDBMhash(chars)
-                ! free the memory
-                deallocate(chars)
+                chars = transfer(real(key,8), chars)
+                calculateHash = calculateSDBMhash(chars, 8)
+            type is (integer (kind=4))
+                allocate(chars(4))
+                chars = transfer(int(key,4), chars)
+                calculateHash = calculateSDBMhash(chars, 4)
+            type is (integer (kind=8))
+                allocate(chars(8))
+                chars = transfer(int(key,8), chars)
+                calculateHash = calculateSDBMhash(chars, 8)
             class default
                 ! not yet implemented for other types
+                write (0, "(A)") "Unable to calculate a hash code for the given type of key!"
                 call exit(1)
         end select
+        ! free the memory
+        if (allocated(chars)) then
+            deallocate(chars)
+        end if
+
     end function
 
     ! calculate sdbm hash function from a byte array
-    function calculateSDBMhash(intarray)
+    function calculateSDBMhash(intarray, length)
         integer (kind=8) :: calculateSDBMhash
         integer (kind=1), dimension(:), intent(in) :: intarray
-        integer :: length, i
-        length = size(intarray)
+        integer, intent(in) :: length
+        integer :: i
         do i = 1, length
             calculateSDBMhash = intarray(i) + shiftl(calculateSDBMhash, 6) + shiftl(calculateSDBMhash, 16) - calculateSDBMhash
         end do
@@ -245,10 +258,12 @@ contains
             if (associated(this%table(i)%thenode)) then
                 call this%table(i)%thenode%release()
                 deallocate(this%table(i)%thenode)
+                this%table(i)%length = 0
             end if
         end do
         ! remove the table itself
         deallocate (this%table)
+        this%length = 0
     end subroutine
 
     ! procedures of the nodepointer -------------------------------------------

@@ -5,7 +5,7 @@ program test_map
     ! a variable for the new map
     class(map), pointer :: testmap
     character (len=50), allocatable :: key, value
-    real (kind=8) :: k2, v2
+    real (kind=8) :: v2
     integer :: i
 
     allocate(key)
@@ -15,40 +15,33 @@ program test_map
     testmap => map(7)
 
     ! create key and value
-    key = "the key"
+    key = "the key ."
     value = "the value"
 
     ! add is to the map
     call testmap%printContent()
     v2 = 2.2
-    k2 = 1.1
-    call testmap%add(k2, v2, .true.)
+    call testmap%add(1.1, v2, .true.)
     call testmap%printContent()
 
-    k2 = 0.1
-    call testmap%add(k2, v2, .true.)
+    call testmap%add(0.1, v2, .true.)
     call testmap%printContent()
 
-    k2 = 1.1
-    call testmap%add(k2, v2, .true.)
+    call testmap%add(1.1, v2, .true.)
     call testmap%printContent()
 
-    k2 = 0.2
-    call testmap%add(k2, v2, .true.)
+    call testmap%add(2_8, v2, .true.)
     call testmap%printContent()
 
-    k2 = 0.1
-    call testmap%add(k2, v2, .true.)
+    call testmap%add(2, v2, .true.)
     call testmap%printContent()
 
-    k2 = -1.3
-    call testmap%add(k2, v2, .true.)
+    call testmap%add(7.3, v2, .true.)
     call testmap%printContent()
 
     ! any memory holes?
     do i = 1, 10000
-        k2 = 0.1
-        call testmap%add(k2, v2, .true.)
+        call testmap%add(22_8, v2, .true.)
     end do
 
     ! clean up
