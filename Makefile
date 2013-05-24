@@ -24,7 +24,11 @@ include:
 
 lib:
 	mkdir -p lib
-	
+
+# create the documentation with doxygen
+doc/html: src/* testsrc/* doc/Doxyfile
+	doxygen doc/Doxyfile
+
 # compile tests
 tests: bin build include bin/test-up-1 bin/test-up-2 bin/test-list bin/test-map
 
@@ -49,5 +53,5 @@ build/%.o: testsrc/%.f90
 
 # clean up everything
 clean:
-	rm -rf bin build include lib
+	rm -rf bin build include lib doc/html
 

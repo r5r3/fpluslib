@@ -1,19 +1,26 @@
+!> @brief   A simple hash table implementation
 module mod_map
     implicit none
-    ! this module implements a hash table
+    private
 
-    ! the map itself
-    type map
-        class(nodepointer), dimension(:), pointer :: table
-        integer :: length
-        integer :: initialSize
-        contains
-        procedure add                       ! add an element to the new map
-        procedure positionForHash           ! calculate the index of the hash key in the table
-        procedure printContent              ! print the table structure for debuging
-        procedure get                       ! get one object from the map
-        procedure remove                    ! remove a key and the corresponding value from the list
-        procedure clear                     ! remove all elements and deallocate internal memory
+    !> @brief   The hash map type
+    type, public :: map
+        class(nodepointer), dimension(:), pointer, private :: table
+        integer, private :: length
+        integer, private :: initialSize
+    contains
+        !> @brief   Associates the specified value with the specified key in this map.
+        procedure, public :: add
+        !> @brief   Calculate the index of the hash key in the table
+        procedure, private :: positionForHash
+        !> @brief   Print the table structure for debuging
+        procedure, public :: printContent
+        !> @brief   Returns the value to which the specified key is mapped, or null if this map contains no mapping for the key.
+        procedure, public :: get
+        !> @brief   Removes the mapping for the specified key from this map if present.
+        procedure, public :: remove
+        !> @brief   Removes all of the mappings from this map and deallocates all internal used memory
+        procedure, public :: clear
     end type
     ! define the constructor for the map
     interface map
