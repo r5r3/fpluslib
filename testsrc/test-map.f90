@@ -16,7 +16,7 @@ program test_map
     allocate(value)
 
     ! create the map
-    testmap => map(3)
+    testmap => map(2)
 
     ! create key and value
     key = "the key ."
@@ -59,8 +59,16 @@ program test_map
     i8 = toIntegerK8(testmap%get(2))
     print*, "Key:",2,"Value:",i8
 
+    ! remove an element
+    call testmap%remove(1.1)
+    call testmap%printContent()
+    call testmap%remove(22_8)
+    call testmap%printContent()
+    call testmap%remove(2_8)
+    call testmap%printContent()
+
     ! clean up
-    call testmap%removeAll()
+    call testmap%clear()
     call testmap%printContent()
 
 

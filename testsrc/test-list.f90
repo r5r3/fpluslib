@@ -58,7 +58,7 @@ program test_list
     print*, ""
 
     ! remove all elements
-    call testlist%removeAll()
+    call testlist%clear()
 
     ! create random numbers in a loop
     do i = 1, 5
@@ -76,7 +76,7 @@ program test_list
     print*, ""
 
     ! remove all elements before deallocation, finalization is not yet supported!
-    call testlist%removeAll()
+    call testlist%clear()
     deallocate(testlist)
 
 end program test_list

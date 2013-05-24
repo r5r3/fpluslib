@@ -15,7 +15,7 @@ module mod_list
         procedure getElementAt              ! returns an element of the list with a given position
         procedure getIterator               ! returns a iterator over all elements
         ! deallocate all elements
-        procedure removeAll
+        procedure clear
     end type
     ! define the constructor for list
     interface list
@@ -148,7 +148,7 @@ contains
     end function
 
     ! finalize the list, clean up the memory
-    subroutine removeAll(this)
+    subroutine clear(this)
         class(list) :: this
         class(iterator), pointer :: iter
         class(element), pointer :: elem

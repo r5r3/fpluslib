@@ -12,8 +12,8 @@ module mod_map
         procedure positionForHash           ! calculate the index of the hash key in the table
         procedure printContent              ! print the table structure for debuging
         procedure get                       ! get one object from the map
-        ! deallocate all elements
-        procedure removeAll
+        procedure remove                    ! remove a key and the corresponding value from the list
+        procedure clear                     ! remove all elements and deallocate internal memory
     end type
     ! define the constructor for the map
     interface map
@@ -29,6 +29,7 @@ module mod_map
 
     ! the hash table is filled with nodes where each node can have children
     type node
+        ! a pointer to the next node
         class(node), pointer :: next
         ! the key used to insert the value
         class(*), pointer :: key
@@ -250,7 +251,7 @@ contains
     end subroutine
 
     ! finalize the list, clean up the memory
-    subroutine removeAll(this)
+    subroutine clear(this)
         class(map) :: this
         integer :: i
         ! loop over the complete table
@@ -301,6 +302,61 @@ contains
             end do
         end if
     end function
+
+    ! remove a key and the corresponding value from the list
+    subroutine remove(this, key)
+        class(map) :: this
+        class(*), intent(in) :: key
+
+        ! local variables
+        integer :: pos = 0
+        integer (kind=8) :: hash
+        class(node), pointer :: currentnode, lastnode, nodetoremove
+
+        ! calculate the position in the table
+        hash = calculateHash(key)
+        pos = this%positionForHash(hash)
+
+        ! find the corresponding node in the list
+        ! is there a node at the calculated position of the table?
+        if (this%table(pos)%length == 0) then
+            ! no, nothing found. the key is not in the map
+            return
+        else
+            ! the second posibility is that a node is already present at this position.
+            ! has one of the existing nodes the same hash code? if so, remove it
+            currentnode => this%table(pos)%thenode
+            lastnode => null()
+            do
+                ! the node found in the table has the same hash code, remove it
+                if (currentnode%hash == hash) then
+                    ! it is the first node, remove it
+                    if (.not.associated(lastnode) .and. currentnode%hash == this%table(pos)%thenode%hash) then
+                        nodetoremove => this%table(pos)%thenode
+                        this%table(pos)%thenode => this%table(pos)%thenode%next
+                        nodetoremove%next => null()
+                        call nodetoremove%release()
+                        deallocate(nodetoremove)
+                    else
+                        ! it is not the first node
+                        lastnode%next => currentnode%next
+                        currentnode%next => null()
+                        call currentnode%release()
+                        deallocate (currentnode)
+                    end if
+                    ! correct the number of elements
+                    this%table(pos)%length = this%table(pos)%length -1
+                    this%length = this%length -1
+                    ! leave the loop
+                    exit
+                end if
+                ! leave the loop if no more nodes are present
+                if (.not.associated(currentnode%next)) exit
+                lastnode => currentnode
+                currentnode => currentnode%next
+            end do
+        end if
+    end subroutine
 
     ! procedures of the nodepointer -------------------------------------------
 
