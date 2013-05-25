@@ -48,7 +48,9 @@ program test_map
 
     ! get some objects from the map
     call testmap%printContent()
-    v2 = toReal(testmap%get(1.1))
+    testval => testmap%get(1.1)
+    print*, associated(testval)
+    v2 = toReal(testval)
     print*, "Key:",1.1,"Value:",v2
     v8 = toRealK8(testmap%get(7.3))
     print*, "Key:",7.3,"Value:",v8

@@ -3,11 +3,13 @@
 HAVEIFORT=$(shell which ifort)
 ifneq ($(findstring ifort,$(HAVEIFORT)),)
 	FC=ifort
+	CC=icc
 	FCFLAGS=-module include -fpic
 	DYLIBFLAGS=-shared -fpic
 	LDFLAGS=-Wl,-rpath=lib -Llib -lfstd
 else
 	FC=gfortran-mp-4.8
+	CC=gcc
 	FCFLAGS=-Jinclude -fpic
 	DYLIBFLAGS=-shared -fpic
 	LDFLAGS=-Llib -lfstd
@@ -66,6 +68,9 @@ bin/test-map: lib/libfstd.$(DYLIBEXT) testsrc/test-map.f90
 # rule to compile fortran files
 build/%.o: src/%.f90
 	$(FC) $(FCFLAGS) -c -o $@ $<
+
+build/%.o: src/%.c
+	$(CC) -c -o $@ $<
 
 build/%.o: testsrc/%.f90
 	$(FC) $(FCFLAGS) -c -o $@ $<

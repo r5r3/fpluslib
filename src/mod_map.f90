@@ -1,6 +1,7 @@
 !> @brief   A simple hash table implementation
 !> @author  Robert Schuster
 module mod_map
+    use, intrinsic :: ISO_C_Binding
     implicit none
     private
 
@@ -57,6 +58,27 @@ module mod_map
         module procedure constructor_node
     end interface
 
+
+    ! these functions are used to work around a bug in the transfer function of ifort
+    interface
+        subroutine C_float2intarray(flt, inta) bind(C,name="float2intarray")
+            real (kind=4) :: flt
+            integer (kind=1), dimension(4) :: inta
+        end subroutine 
+        subroutine C_double2intarray(dbl, inta) bind(C,name="double2intarray")
+            real (kind=8) :: dbl
+            integer (kind=1), dimension(8) :: inta
+        end subroutine 
+        subroutine C_int2intarray(i, inta) bind(C,name="int2intarray")
+            integer (kind=4) :: i
+            integer (kind=1), dimension(4) :: inta
+        end subroutine 
+        subroutine C_long2intarray(l, inta) bind(C,name="long2intarray")
+            integer (kind=8) :: l
+            integer (kind=1), dimension(8) :: inta
+        end subroutine 
+    end interface
+
 ! the implementation of the procedures follows
 contains
 
@@ -68,34 +90,38 @@ contains
         class(*), intent(in) :: key
 
         !local variables for character key
-        integer :: length
+        integer :: l = 0
         integer (kind=1), dimension(:), allocatable :: chars
 
         ! use sdbm
         ! transfer the content of the key to an integer array and call calculateSDBMhash
-        ! the usage of the explicit conversion function real and int is needed by the ifort compiler
+        ! the usage of the c-functions seems to be needed to work around an error in ifort transfer function
         calculateHash = 0
         select type (key)
             type is (character (len=*))
-                length = len_trim(key)
-                allocate(chars(length))
+                l = len_trim(key)
+                allocate(chars(l))
                 chars = transfer(key, chars)
-                calculateHash = calculateSDBMhash(chars, length)
+                calculateHash = calculateSDBMhash(chars, l)
             type is (real (kind=4))
                 allocate(chars(4))
-                chars = transfer(real(key,4), chars)
+                !chars = transfer(real(key,4), chars)
+                call C_float2intarray(key, chars)
                 calculateHash = calculateSDBMhash(chars, 4)
             type is (real (kind=8))
                 allocate(chars(8))
-                chars = transfer(real(key,8), chars)
+                !chars = transfer(real(key,8), chars)
+                call C_double2intarray(key, chars)
                 calculateHash = calculateSDBMhash(chars, 8)
             type is (integer (kind=4))
                 allocate(chars(4))
-                chars = transfer(int(key,4), chars)
+                !chars = transfer(int(key,4), chars)
+                call C_int2intarray(key, chars)
                 calculateHash = calculateSDBMhash(chars, 4)
             type is (integer (kind=8))
                 allocate(chars(8))
-                chars = transfer(int(key,8), chars)
+                !chars = transfer(int(key,8), chars)
+                call C_long2intarray(key, chars)
                 calculateHash = calculateSDBMhash(chars, 8)
             class default
                 ! not yet implemented for other types
@@ -106,16 +132,15 @@ contains
         if (allocated(chars)) then
             deallocate(chars)
         end if
-
     end function
 
     ! calculate sdbm hash function from a byte array
-    function calculateSDBMhash(intarray, length)
+    function calculateSDBMhash(intarray, l)
         integer (kind=8) :: calculateSDBMhash
         integer (kind=1), dimension(:), intent(in) :: intarray
-        integer, intent(in) :: length
+        integer, intent(in) :: l
         integer :: i
-        do i = 1, length
+        do i = 1, l
             calculateSDBMhash = intarray(i) + shiftl(calculateSDBMhash, 6) + shiftl(calculateSDBMhash, 16) - calculateSDBMhash
         end do
     end function
