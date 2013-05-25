@@ -5,10 +5,12 @@ ifneq ($(findstring ifort,$(HAVEIFORT)),)
 	FC=ifort
 	FCFLAGS=-module include -fpic
 	DYLIBFLAGS=-shared -fpic
+	LDFLAGS=-Wl,-rpath=lib -Llib -lfstd
 else
 	FC=gfortran-mp-4.8
 	FCFLAGS=-Jinclude -fpic
 	DYLIBFLAGS=-shared -fpic
+	LDFLAGS=-Llib -lfstd
 endif
 
 # create a list of all objects
@@ -56,10 +58,10 @@ bin/test-up-2: testsrc/test-up-2.f90
 	$(FC) $(FCFLAGS) -o $@ $<
 
 bin/test-list: lib/libfstd.$(DYLIBEXT) build/test-list.o
-	$(FC) $(FCFLAGS) -o $@ build/test-list.o -Llib -lfstd
+	$(FC) $(FCFLAGS) -o $@ build/test-list.o $(LDFLAGS)
 
 bin/test-map: lib/libfstd.$(DYLIBEXT) testsrc/test-map.f90
-	$(FC) $(FCFLAGS) -o $@ -Llib -lfstd testsrc/test-map.f90
+	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-map.f90
 
 # rule to compile fortran files
 build/%.o: src/%.f90
