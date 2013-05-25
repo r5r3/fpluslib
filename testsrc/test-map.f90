@@ -17,9 +17,8 @@ program test_map
     ! create the map
     testmap => map(2)
 
-    ! create key and value
-    key = "the key ."
-    value = "the value"
+    ! show the number of elements in the map
+    print*, "Values in the map:", testmap%length()
 
     ! add is to the map
     call testmap%printContent()

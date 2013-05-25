@@ -7,7 +7,7 @@ module mod_map
     !> @brief   The hash map type
     type, public :: map
         class(nodepointer), dimension(:), pointer, private :: table
-        integer, private :: length
+        integer, private :: nelements
         integer, private :: initialSize
     contains
         !> @brief   Associates the specified value with the specified key in this map.
@@ -22,6 +22,8 @@ module mod_map
         procedure, public :: remove => map_remove
         !> @brief   Removes all of the mappings from this map and deallocates all internal used memory
         procedure, public :: clear => map_clear
+        !> @brief   Returns the number of elements in this list
+        procedure, public :: length => map_length
     end type
     ! define the constructor for the map
     interface map
@@ -133,7 +135,7 @@ contains
         else
             constructor_map%initialSize = 10000
         end if
-        constructor_map%length = 0
+        constructor_map%nelements = 0
     end function
 
     !> @public
@@ -185,7 +187,7 @@ contains
             this%table(pos)%thenode => newnode
             this%table(pos)%length = 1
             ! count this element
-            this%length = this%length + 1
+            this%nelements = this%nelements + 1
         else
             ! the second posibility is that a node is already present at this position.
             ! has one of the existing nodes the same hash code? if so, replace it
@@ -222,7 +224,7 @@ contains
                 currentnode%next => newnode
                 this%table(pos)%length = this%table(pos)%length + 1
                 ! count this element
-                this%length = this%length + 1
+                this%nelements = this%nelements + 1
             end if
         end if
 
@@ -250,7 +252,7 @@ contains
         ! is the table present?
         if (associated(this%table)) then
             ! print the number of elements in the map
-            write (*, "(A,I8)") "Elements in the map:", this%length
+            write (*, "(A,I8)") "Elements in the map:", this%nelements
             ! loop over all table cells
             do i = 1, this%initialSize
                 if (associated(this%table(i)%thenode)) then
@@ -290,7 +292,7 @@ contains
         end do
         ! remove the table itself
         deallocate (this%table)
-        this%length = 0
+        this%nelements = 0
     end subroutine
 
     !> @public
@@ -381,7 +383,7 @@ contains
                     end if
                     ! correct the number of elements
                     this%table(pos)%length = this%table(pos)%length -1
-                    this%length = this%length -1
+                    this%nelements = this%nelements -1
                     ! leave the loop
                     exit
                 end if
@@ -393,8 +395,13 @@ contains
         end if
     end subroutine
 
-    ! procedures of the nodepointer -------------------------------------------
-
+    !> @public
+    !> @brief   Returns the number of elements in this list
+    !> @return  number of elements
+    integer function map_length(this)
+        class(map) :: this
+        map_length = this%nelements
+    end function
 
     ! procedures of the node --------------------------------------------------
 

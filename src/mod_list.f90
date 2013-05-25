@@ -1,21 +1,32 @@
+!> @brief   An implementation of a double-linked list
+!> @author  Robert Schuster
 module mod_list
-    use mod_fillvalue
+    use mod_iterator
     implicit none
-    ! this module implements a linked list
+    private
 
     ! a type for the linked list itself
-    type list
+    type, public :: list
         ! variables
-        class(element), pointer :: firstElement
-        class(element), pointer :: lastElement
-        integer :: length
+        class(element), pointer, private :: firstElement
+        class(element), pointer, private :: lastElement
+        integer, private :: nelements
         ! procedures
-        contains
-        procedure add                       ! add an element to the end of the list
-        procedure getElementAt              ! returns an element of the list with a given position
-        procedure getIterator               ! returns a iterator over all elements
-        ! deallocate all elements
-        procedure clear
+    contains
+        !> @brief   Appends the specified value to the end of this list.
+        procedure, public :: add => list_add
+        !> @brief   Returns the value at the specified position in this list.
+        procedure, public :: get => list_get
+        !> @brief   Returns the first value in the list.
+        procedure, public :: first => list_first
+        !> @brief   Returns the first value in the list.
+        procedure, public :: last => list_last
+        !> @brief   Returns an iterator over the values in this list in proper sequence.
+        procedure, public :: iterator => list_iterator
+        !> @brief   Removes all values from this list and deallocates all internal used memory
+        procedure, public :: clear => list_clear
+        !> @brief   Returns the number of elements in this list
+        procedure, public :: length => list_length
     end type
     ! define the constructor for list
     interface list
@@ -24,28 +35,23 @@ module mod_list
 
 
     ! a iterator for all elements of a list
-    type iterator
-        class(list), pointer :: thelist
-        class(element), pointer :: currentElement
-        integer :: direction
-        contains
-        procedure hasNext
-        procedure getNext
+    type, public, extends (iterator) :: listiterator
+        class(list), pointer, private :: thelist
+        class(element), pointer, private :: currentElement
+        integer, private :: direction
+    contains
+        procedure, public :: hasnext => listiterator_hasnext
+        procedure, public :: next => listiterator_next
+        procedure, private :: nextelement => listiterator_nextelement
     end type
 
 
     ! a type for the elements
-    type element
+    type, private :: element
         class(*), pointer :: value
         class(element), pointer :: nextElement
         class(element), pointer :: prevElement
         logical :: valueIsCopy
-        ! procedures
-        contains
-        procedure getReal       ! return the value as real
-        procedure getRealK8     ! return the value as real(kind=8)
-        procedure getInteger    ! return the value as integer
-        procedure getIntegerK8  ! return the value as integer(kind=8)
     end type
     ! define the constructor for list
     interface element
@@ -66,11 +72,18 @@ contains
         ! ensure that all pointers point to null
         constructor_list%firstElement => null()
         constructor_list%lastElement => null()
-        constructor_list%length = 0
+        constructor_list%nelements = 0
     end function
 
-    ! add an element to the end of the list
-    subroutine add(this, value, copy)
+    !> @public
+    !> @brief       Appends the specified value to the end of this list.
+    !> @details     The specified value is added to the end of the list. It is possible to add a link
+    !>              or a complete copy of the value.
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @param[in]   value   value to be added
+    !> @param[in]   copy    if present and .true., the value will be copied and not linked. The
+    !>                      default operation is to store a pointer to the value.
+    subroutine list_add(this, value, copy)
         class(list) :: this
         class(*), target :: value
         logical, optional :: copy
@@ -84,7 +97,7 @@ contains
         end if
 
         ! create a new element
-        if (this%length == 0) then
+        if (this%nelements == 0) then
             this%firstElement => constructor_element(value, null(), null(), copyValue)
             this%lastElement => this%firstElement
         else
@@ -92,72 +105,128 @@ contains
             this%lastElement => this%lastElement%nextElement
         end if
         ! count the elements
-        this%length = this%length + 1
+        this%nelements = this%nelements + 1
     end subroutine
 
-    ! get an element at a specified position within the list
-    function getElementAt(this, ind)
+    !> @public
+    !> @brief       Returns the value at the specified position in this list.
+    !> @details     Returns the value at a given index, this function provides array-like
+    !>              behavior of the list, but it is slow.
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @param[in]   ind     the index of the searched value.
+    !> @return      Returns the value if the index is in the list, otherwise a null-pointer.
+    function list_get(this, ind)
         class(list) :: this
         integer :: ind
-        class(element), pointer :: getElementAt
+        class(*), pointer :: list_get
+        class(element), pointer :: nextele
         integer :: i
 
         ! check if the index is valid
-        if (ind > this%length .or. ind <= 0) then
-            getElementAt => null()
+        if (ind > this%nelements .or. ind <= 0) then
+            list_get => null()
             return
         end if
 
         ! check if ind is the first or the last index
         if (ind == 1) then
-            getElementAt => this%firstElement
+            list_get => this%firstElement%value
             return
         end if
-        if (ind == this%length) then
-            getElementAt => this%lastElement
+        if (ind == this%nelements) then
+            list_get => this%lastElement%value
             return
         end if
 
         ! find the element at the given position
-        getElementAt => this%firstElement
+        nextele => this%firstElement
         do i = 2, ind
-            getElementAt => getElementAt%nextElement
+            nextele => nextele%nextElement
         end do
+        list_get => nextele%value
     end function
 
-    ! get an iterator over all elements
-    function getIterator(this, dir)
-        class(list), target :: this
-        integer, optional :: dir
-        class(iterator), pointer :: getIterator
+    !> @public
+    !> @brief       Returns the first value in the list
+    !> @details     Returns the first value in the list, this function is fast.
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @return      Returns the first value if the list is not empty, otherwise a null-pointer.
+    function list_first(this)
+        class(list) :: this
+        class(*), pointer :: list_first
 
-        ! create the new iterator
-        allocate(getIterator)
-
-        ! set the settings of the iterator
-        getIterator%thelist => this
-        if (present(dir) .and. dir == 1) then
-            ! go backwards through the list
-            getIterator%direction = 1
-            getIterator%currentElement => this%lastElement
+        ! check if ind is the first or the last index
+        if (this%nelements >= 1) then
+            list_first => this%firstElement%value
+            return
         else
-            ! go foreward through the list
-            getIterator%direction = 0
-            getIterator%currentElement => this%firstElement
+            list_first => null()
         end if
     end function
 
-    ! finalize the list, clean up the memory
-    subroutine clear(this)
+    !> @public
+    !> @brief       Returns the last value in the list
+    !> @details     Returns the last value in the list, this function is fast.
+    !> @param[in]   this    reference to the list object, automatically set by fortran
+    !> @return      Returns the last value if the list is not empty, otherwise a null-pointer.
+    function list_last(this)
         class(list) :: this
-        class(iterator), pointer :: iter
+        class(*), pointer :: list_last
+
+        ! check if ind is the first or the last index
+        if (this%nelements >= 1) then
+            list_last => this%lastElement%value
+            return
+        else
+            list_last => null()
+        end if
+    end function
+
+    !> @public
+    !> @brief       Returns an iterator over the values in this list in proper sequence.
+    !> @details     Returns an iterator that can be used to iterate over all values in this
+    !>              list in forward or backward direction
+    !> @param[in]   this    reference to the list object, automatically set by fortran
+    !> @param[in]   dir     the direction in which the iterator should run. 0=forwards, 1=backwards.
+    !> @return      Returns an initialized iterator object. It is the only way to create an
+    !>              iterator object.
+    function list_iterator(this, dir)
+        class(list), target :: this
+        integer, optional :: dir
+        class(listiterator), pointer :: list_iterator
+
+        ! create the new iterator
+        allocate(list_iterator)
+
+        ! set the settings of the iterator
+        list_iterator%thelist => this
+        if (present(dir) .and. dir == 1) then
+            ! go backwards through the list
+            list_iterator%direction = 1
+            list_iterator%currentElement => this%lastElement
+        else
+            ! go foreward through the list
+            list_iterator%direction = 0
+            list_iterator%currentElement => this%firstElement
+        end if
+    end function
+
+    !> @public
+    !> @brief       Removes all values from this list and deallocates all internal used memory
+    !> @details     This subroutine completely resets the list to its initial state and frees up all
+    !>              the allocated memory. Call is before deallocation of a list object to ensure that
+    !>              no memory is leaked.
+    !> @param[in]   this    reference to the list object, automatically set by fortran
+    subroutine list_clear(this)
+        class(list) :: this
+        class(listiterator), pointer :: iter
         class(element), pointer :: elem
 
         ! are the elements in the list?
-        if (this%length > 0) then
-            iter => this%getIterator()
-            do while(iter%hasNext())
-                elem => iter%getNext()
+        if (this%nelements > 0) then
+            iter => this%iterator()
+            do while(iter%hasnext())
+                elem => iter%nextelement()
                 ! deallocate the value, if it is a copy
                 if (elem%valueIsCopy) then
                     deallocate(elem%value)
@@ -169,38 +238,64 @@ contains
             ! set the pointers back to null
             this%firstElement => null()
             this%lastElement => null()
-            this%length = 0
+            this%nelements = 0
         end if
     end subroutine
+
+    !> @public
+    !> @brief   Returns the number of elements in this list
+    !> @return  number of elements
+    integer function list_length(this)
+        class(list) :: this
+        list_length = this%nelements
+    end function
 
     ! then the procedures for the iterator ------------------------------------
 
     ! check if we are able to get an additional element
-    function hasNext(this)
-        class(iterator) :: this
-        logical :: hasNext
+    function listiterator_hasnext(this)
+        class(listiterator) :: this
+        logical :: listiterator_hasnext
         if (associated(this%currentElement)) then
-            hasNext = .true.
+            listiterator_hasnext = .true.
         else
-            hasNext = .false.
+            listiterator_hasnext = .false.
         end if
     end function
 
     ! get the next element
-    function getNext(this)
-        class(iterator) :: this
-        class(element), pointer :: getNext
+    function listiterator_next(this)
+        class(listiterator) :: this
+        class(*), pointer :: listiterator_next
+        class(element), pointer :: nextelement
 
         ! assign null to the result
-        getNext => null()
+        listiterator_next => null()
 
-        if (this%hasNext()) then
-            getNext => this%currentElement
+        ! get the next element object
+        nextelement => this%nextelement()
+
+        ! assign the result
+        if (associated(nextelement)) then
+            listiterator_next => nextelement%value
+        end if
+    end function
+
+    ! get the next element
+    function listiterator_nextelement(this)
+        class(listiterator) :: this
+        class(element), pointer :: listiterator_nextelement
+
+        ! assign null to the result
+        listiterator_nextelement => null()
+
+        if (this%hasnext()) then
+            listiterator_nextelement => this%currentElement
             ! go to the next element
-            if (this%direction == 0 .and. associated(getNext%nextElement)) then
-                this%currentElement => getNext%nextElement
-            else if (this%direction == 1 .and. associated(getNext%prevElement)) then
-                this%currentElement => getNext%prevElement
+            if (this%direction == 0 .and. associated(this%currentElement%nextElement)) then
+                this%currentElement => this%currentElement%nextElement
+            else if (this%direction == 1 .and. associated(this%currentElement%prevElement)) then
+                this%currentElement => this%currentElement%prevElement
             else
                 this%currentElement => null()
             end if
@@ -230,78 +325,5 @@ contains
             constructor_element%valueIsCopy = .false.
         end if
     end function
-
-    ! return the value stored in the element as real
-    function getReal(this)
-        class(element) :: this
-        real :: getReal
-        ! create a pointer to the value, the associate block in gfortran 4.8 don't works
-        class(*), pointer :: value
-        value => this%value
-        ! check the type
-        select type (value)
-            type is (real)
-                getReal = value
-            class default
-                getReal = fstd_fill_real
-        end select
-        ! free the pointer
-        nullify(value)
-    end function
-
-    ! return the value stored in the element as real(kind=8)
-    function getRealK8(this)
-        class(element) :: this
-        real (kind=8) :: getRealK8
-        ! create a pointer to the value, the associate block in gfortran 4.8 don't works
-        class(*), pointer :: value
-        value => this%value
-        ! check the type
-        select type (value)
-            type is (real (kind=8))
-                getRealK8 = value
-            class default
-                getRealK8 = fstd_fill_realk8
-        end select
-        ! free the pointer
-        nullify(value)
-    end function
-
-    ! return the value stored in the element as real
-    function getInteger(this)
-        class(element) :: this
-        integer :: getInteger
-        ! create a pointer to the value, the associate block in gfortran 4.8 don't works
-        class(*), pointer :: value
-        value => this%value
-        ! check the type
-        select type (value)
-            type is (integer)
-                getInteger = value
-            class default
-                getInteger = fstd_fill_int
-        end select
-        ! free the pointer
-        nullify(value)
-    end function
-
-    ! return the value stored in the element as real(kind=8)
-    function getIntegerK8(this)
-        class(element) :: this
-        integer (kind=8) :: getIntegerK8
-        ! create a pointer to the value, the associate block in gfortran 4.8 don't works
-        class(*), pointer :: value
-        value => this%value
-        ! check the type
-        select type (value)
-            type is (integer (kind=8))
-                getIntegerK8 = value
-            class default
-                getIntegerK8 = fstd_fill_intk8
-        end select
-        ! free the pointer
-        nullify(value)
-    end function
-
 
 end module mod_list

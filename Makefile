@@ -7,8 +7,8 @@ ifneq ($(findstring ifort,$(HAVEIFORT)),)
 	DYLIBFLAGS=-shared -fpic
 else
 	FC=gfortran-mp-4.8
-	FCFLAGS=-Jinclude -fPIC
-	DYLIBFLAGS=-shared -fPIC
+	FCFLAGS=-Jinclude -fpic
+	DYLIBFLAGS=-shared -fpic
 endif
 
 # create a list of all objects
