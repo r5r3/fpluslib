@@ -6,7 +6,7 @@ ifneq ($(findstring ifort,$(HAVEIFORT)),)
 	CC=icc
 	FCFLAGS=-module include -fpic
 	DYLIBFLAGS=-shared -fpic
-	LDFLAGS=-Wl,-rpath=lib -Llib -lfstd
+	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd
 else
 	FC=gfortran-mp-4.8
 	CC=gcc
