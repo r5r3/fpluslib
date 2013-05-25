@@ -12,7 +12,7 @@ else
 	CC=gcc
 	FCFLAGS=-Jinclude -fpic
 	DYLIBFLAGS=-shared -fpic
-	LDFLAGS=-Llib -lfstd
+	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd
 endif
 
 # create a list of all objects
