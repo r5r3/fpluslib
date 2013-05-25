@@ -1,4 +1,5 @@
 !> @brief   A simple hash table implementation
+!> @author  Robert Schuster
 module mod_map
     implicit none
     private
@@ -10,17 +11,17 @@ module mod_map
         integer, private :: initialSize
     contains
         !> @brief   Associates the specified value with the specified key in this map.
-        procedure, public :: add
+        procedure, public :: add => map_add
         !> @brief   Calculate the index of the hash key in the table
         procedure, private :: positionForHash
         !> @brief   Print the table structure for debuging
-        procedure, public :: printContent
+        procedure, public :: printContent => map_printcontent
         !> @brief   Returns the value to which the specified key is mapped, or null if this map contains no mapping for the key.
-        procedure, public :: get
+        procedure, public :: get => map_get
         !> @brief   Removes the mapping for the specified key from this map if present.
-        procedure, public :: remove
+        procedure, public :: remove => map_remove
         !> @brief   Removes all of the mappings from this map and deallocates all internal used memory
-        procedure, public :: clear
+        procedure, public :: clear => map_clear
     end type
     ! define the constructor for the map
     interface map
@@ -135,8 +136,16 @@ contains
         constructor_map%length = 0
     end function
 
-    ! add an element to the map
-    subroutine add(this, key, value, copy)
+    !> @public
+    !> @brief       Associates the specified value with the specified key in this map.
+    !> @details     If the map previously contained a mapping for the key, the old value is replaced.
+    !>              A copy of the key is always stored within the map.
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @param[in]   key     key with which the specified value is to be associated
+    !> @param[in]   value   value to be associated with the specified key
+    !> @param[in]   copy    if present and .true., the value will be copied and not linked. The
+    !>                      default operation is to store a pointer to the value.
+    subroutine map_add(this, key, value, copy)
         class(map) :: this
         class(*), intent(in) :: key
         class(*), target :: value
@@ -228,8 +237,12 @@ contains
         positionForHash = modulo(hash, this%initialSize) + 1
     end function
 
-    ! print the table structure for debuging
-    subroutine printContent(this)
+    !> @public
+    !> @brief       Print the table structure for debuging
+    !> @details     This subroutine lists everything stored in the map together with the
+    !>              calculated hash codes and the position within the map.
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    subroutine map_printContent(this)
         class(map) :: this
         integer :: i
         class(node), pointer :: currentnode
@@ -257,8 +270,13 @@ contains
         print*, ""
     end subroutine
 
-    ! finalize the list, clean up the memory
-    subroutine clear(this)
+    !> @public
+    !> @brief       Removes all of the mappings from this map and deallocates all internal used memory
+    !> @details     This subroutine completely resets the map to its initial state and frees up all
+    !>              the allocated memory. Call is before deallocation of a map object to ensure that
+    !>              no memory is leaked.
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    subroutine map_clear(this)
         class(map) :: this
         integer :: i
         ! loop over the complete table
@@ -275,11 +293,16 @@ contains
         this%length = 0
     end subroutine
 
-    ! return an object stored with a given key
-    function get(this, key)
+    !> @public
+    !> @brief       Returns the value to which the specified key is mapped, or null if this map contains no mapping for the key.
+    !> @details     This function looks up the key in the map and returns a pointer to the stored value.
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @param[in]   key     key with which the searched value is sould be associated
+    !> @return      a pointer to the value associated to the key or a null-pointer if nothing was found.
+    function map_get(this, key)
         class(map) :: this
         class(*), intent(in) :: key
-        class(*), pointer :: get
+        class(*), pointer :: map_get
 
         ! local variables
         integer (kind=8) :: hash
@@ -287,7 +310,7 @@ contains
         class(node), pointer :: currentnode
 
         ! if nothing is found, return a null-pointer
-        get => null()
+        map_get => null()
         ! calculate the hash code for the key
         hash = calculateHash(key)
         ! find the value in the table
@@ -297,7 +320,7 @@ contains
             do
                 ! is the current node the search node
                 if (currentnode%hash == hash) then
-                    get => currentnode%value
+                    map_get => currentnode%value
                     exit
                 end if
                 ! not found? try the next one
@@ -310,8 +333,13 @@ contains
         end if
     end function
 
-    ! remove a key and the corresponding value from the list
-    subroutine remove(this, key)
+    !> @public
+    !> @brief       Removes the mapping for the specified key from this map if present.
+    !> @details     This subroutine looks up the key in the map and removes the stored value. If the value was copied,
+    !>              the used memory is deallocated.
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @param[in]   key     key with which the searched value is sould be associated
+    subroutine map_remove(this, key)
         class(map) :: this
         class(*), intent(in) :: key
 

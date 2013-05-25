@@ -7,10 +7,22 @@ ifneq ($(findstring ifort,$(HAVEIFORT)),)
 else
 	FC=gfortran-mp-4.8
 	FCFLAGS=-Jinclude -g
+	DYLIBFLAGS=-shared -fPIC
+endif
+
+# create a list of all objects
+SRCOBJ=$(shell scripts/module_build_order.py --src src --obj build)
+
+# the default extension for a dynamic library
+OS=$(shell uname -s)
+ifeq ($(OS),Darwin)
+	DYLIBEXT=dylib
+else
+	DYLIBEXT=so
 endif
 
 # compile everything
-all: bin include lib build
+all: bin include lib build lib/libfstd.$(DYLIBEXT)
 
 # create folders
 bin:
@@ -25,6 +37,10 @@ include:
 lib:
 	mkdir -p lib
 
+# build the dynamic library file
+lib/libfstd.$(DYLIBEXT): lib $(SRCOBJ)
+	$(FC) $(DYLIBFLAGS) -o $@ $(SRCOBJ)
+
 # create the documentation with doxygen
 doc/html: src/* testsrc/* doc/Doxyfile
 	doxygen doc/Doxyfile
@@ -38,11 +54,11 @@ bin/test-up-1: testsrc/test-up-1.f90
 bin/test-up-2: testsrc/test-up-2.f90
 	$(FC) $(FCFLAGS) -o $@ $<
 
-bin/test-list: build/mod_fillvalue.o build/mod_list.o build/test-list.o
-	$(FC) $(FCFLAGS) -o $@ build/mod_fillvalue.o build/mod_list.o build/test-list.o
+bin/test-list: lib/libfstd.$(DYLIBEXT) build/test-list.o
+	$(FC) $(FCFLAGS) -o $@ build/test-list.o -Llib -lfstd
 
-bin/test-map: build/mod_fstd.o build/mod_map.o testsrc/test-map.f90
-	$(FC) $(FCFLAGS) -o $@ build/mod_fstd.o build/mod_map.o testsrc/test-map.f90
+bin/test-map: lib/libfstd.$(DYLIBEXT) testsrc/test-map.f90
+	$(FC) $(FCFLAGS) -o $@ -Llib -lfstd testsrc/test-map.f90
 
 # rule to compile fortran files
 build/%.o: src/%.f90

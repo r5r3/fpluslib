@@ -1,6 +1,5 @@
 program test_map
-    use mod_fstd
-    use mod_map
+    use mod_container
     implicit none
 
     ! a variable for the new map
