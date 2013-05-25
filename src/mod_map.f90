@@ -77,6 +77,11 @@ module mod_map
             integer (kind=8) :: l
             integer (kind=1), dimension(8) :: inta
         end subroutine 
+        subroutine C_sdbm(inta, l, hash) bind(C,name="sdbm")
+            integer (kind=4) :: l
+            integer (kind=1), dimension(l) :: inta
+            integer (kind=8) :: hash
+        end subroutine
     end interface
 
 ! the implementation of the procedures follows
@@ -94,7 +99,7 @@ contains
         integer (kind=1), dimension(:), allocatable :: chars
 
         ! use sdbm
-        ! transfer the content of the key to an integer array and call calculateSDBMhash
+        ! transfer the content of the key to an integer array and call C_sdbm
         ! the usage of the c-functions seems to be needed to work around an error in ifort transfer function
         calculateHash = 0
         select type (key)
@@ -102,27 +107,28 @@ contains
                 l = len_trim(key)
                 allocate(chars(l))
                 chars = transfer(key, chars)
-                calculateHash = calculateSDBMhash(chars, l)
+                call C_sdbm(chars, l, calculateHash)
             type is (real (kind=4))
                 allocate(chars(4))
                 !chars = transfer(real(key,4), chars)
                 call C_float2intarray(key, chars)
-                calculateHash = calculateSDBMhash(chars, 4)
+                !print*, chars(1), chars(2), chars(3), chars(4)
+                call C_sdbm(chars, 4, calculateHash)
             type is (real (kind=8))
                 allocate(chars(8))
                 !chars = transfer(real(key,8), chars)
                 call C_double2intarray(key, chars)
-                calculateHash = calculateSDBMhash(chars, 8)
+                call C_sdbm(chars, 8, calculateHash)
             type is (integer (kind=4))
                 allocate(chars(4))
                 !chars = transfer(int(key,4), chars)
                 call C_int2intarray(key, chars)
-                calculateHash = calculateSDBMhash(chars, 4)
+                call C_sdbm(chars, 4, calculateHash)
             type is (integer (kind=8))
                 allocate(chars(8))
                 !chars = transfer(int(key,8), chars)
                 call C_long2intarray(key, chars)
-                calculateHash = calculateSDBMhash(chars, 8)
+                call C_sdbm(chars, 8, calculateHash)
             class default
                 ! not yet implemented for other types
                 write (0, "(A)") "Unable to calculate a hash code for the given type of key!"
@@ -134,16 +140,6 @@ contains
         end if
     end function
 
-    ! calculate sdbm hash function from a byte array
-    function calculateSDBMhash(intarray, l)
-        integer (kind=8) :: calculateSDBMhash
-        integer (kind=1), dimension(:), intent(in) :: intarray
-        integer, intent(in) :: l
-        integer :: i
-        do i = 1, l
-            calculateSDBMhash = intarray(i) + shiftl(calculateSDBMhash, 6) + shiftl(calculateSDBMhash, 16) - calculateSDBMhash
-        end do
-    end function
 
     ! procedures of the map ---------------------------------------------------
 
