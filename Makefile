@@ -1,4 +1,13 @@
 #some variables
+
+# the default extension for a dynamic library
+OS=$(shell uname -s)
+ifeq ($(OS),Darwin)
+	DYLIBEXT=dylib
+else
+	DYLIBEXT=so
+endif
+
 # use intel fortran compiler if available
 HAVEIFORT=$(shell which ifort)
 ifneq ($(findstring ifort,$(HAVEIFORT)),)
@@ -11,20 +20,12 @@ else
 	FC=gfortran-mp-4.8
 	CC=gcc
 	FCFLAGS=-Jinclude -fpic
-	DYLIBFLAGS=-shared -fpic
-	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd
+	DYLIBFLAGS=-shared -fpic -install_name $(shell pwd)/lib/libfstd.$(DYLIBEXT)
+	LDFLAGS=-Llib -lfstd
 endif
 
 # create a list of all objects
 SRCOBJ=$(shell scripts/module_build_order.py --src src --obj build)
-
-# the default extension for a dynamic library
-OS=$(shell uname -s)
-ifeq ($(OS),Darwin)
-	DYLIBEXT=dylib
-else
-	DYLIBEXT=so
-endif
 
 # compile everything
 all: bin include lib build lib/libfstd.$(DYLIBEXT)
