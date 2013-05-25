@@ -3,10 +3,11 @@
 HAVEIFORT=$(shell which ifort)
 ifneq ($(findstring ifort,$(HAVEIFORT)),)
 	FC=ifort
-	FCFLAGS=-module include -g
+	FCFLAGS=-module include -fpic
+	DYLIBFLAGS=-shared -fpic
 else
 	FC=gfortran-mp-4.8
-	FCFLAGS=-Jinclude -g
+	FCFLAGS=-Jinclude -fPIC
 	DYLIBFLAGS=-shared -fPIC
 endif
 
