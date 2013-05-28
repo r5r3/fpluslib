@@ -5,12 +5,25 @@ module mod_list
     implicit none
     private
 
+    ! a type for the elements
+    type :: element
+        class(*), pointer :: value => null()
+        class(element), pointer :: nextElement => null()
+        class(element), pointer :: prevElement => null()
+        logical :: valueIsCopy
+    end type
+    ! define the constructor for list
+    interface element
+        module procedure constructor_element
+    end interface
+
+
     ! a type for the linked list itself
     type, public :: list
         ! variables
-        class(element), pointer, private :: firstElement
-        class(element), pointer, private :: lastElement
         integer, private :: nelements
+        class(element), pointer, private :: firstElement => null()
+        class(element), pointer, private :: lastElement => null()
         ! procedures
     contains
         !> @brief   Appends the specified value to the end of this list.
@@ -36,8 +49,8 @@ module mod_list
 
     ! a iterator for all elements of a list
     type, public, extends (iterator) :: listiterator
-        class(list), pointer, private :: thelist
-        class(element), pointer, private :: currentElement
+        class(list), pointer, private :: thelist => null()
+        class(element), pointer, private :: currentElement => null()
         integer, private :: direction
     contains
         procedure, public :: hasnext => listiterator_hasnext
@@ -45,19 +58,6 @@ module mod_list
         procedure, private :: next_element => listiterator_nextelement
     end type
     
-    
-    ! a type for the elements
-    type :: element
-        class(*), pointer :: value
-        class(element), pointer :: nextElement
-        class(element), pointer :: prevElement
-        logical :: valueIsCopy
-    end type
-    ! define the constructor for list
-    interface element
-        module procedure constructor_element
-    end interface
-
 
 ! implementation of the procedures
 contains

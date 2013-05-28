@@ -5,9 +5,39 @@ module mod_map
     implicit none
     private
 
+
+    ! the hash table is filled with nodes where each node can have children
+    type node
+        ! a pointer to the next node
+        class(node), pointer :: next => null()
+        ! the key used to insert the value
+        class(*), pointer :: key => null()
+        ! the value stored with the key
+        class(*), pointer :: value => null()
+        ! the hash code of the key
+        integer (kind=8) :: hash
+        ! is the value a copy? the key is always a copy
+        logical :: valueIsCopy
+        contains
+        procedure release                   ! deallocate the memory of this node and all children
+    end type
+    ! define the constructor for the node
+    interface node
+        module procedure constructor_node
+    end interface
+
+
+    ! the hash table itself consists of an array of nodepointers where each can point to an node object
+    ! the object holds also the number of nodes
+    type nodepointer
+        class(node), pointer :: thenode => null()
+        integer :: length
+    end type
+
+
     !> @brief   The hash map type
     type, public :: map
-        class(nodepointer), dimension(:), pointer, private :: table
+        class(nodepointer), dimension(:), pointer, private :: table => null()
         integer, private :: nelements
         integer, private :: initialSize
     contains
@@ -30,34 +60,6 @@ module mod_map
     interface map
         module procedure constructor_map
     end interface
-
-    ! the hash table itself consists of an array of nodepointers where each can point to an node object
-    ! the object holds also the number of nodes
-    type nodepointer
-        class(node), pointer :: thenode
-        integer :: length
-    end type
-
-    ! the hash table is filled with nodes where each node can have children
-    type node
-        ! a pointer to the next node
-        class(node), pointer :: next
-        ! the key used to insert the value
-        class(*), pointer :: key
-        ! the value stored with the key
-        class(*), pointer :: value
-        ! the hash code of the key
-        integer (kind=8) :: hash
-        ! is the value a copy? the key is always a copy
-        logical :: valueIsCopy
-        contains
-        procedure release                   ! deallocate the memory of this node and all children
-    end type
-    ! define the constructor for the node
-    interface node
-        module procedure constructor_node
-    end interface
-
 
     ! these functions are used to work around a bug in the transfer function of ifort
     interface
