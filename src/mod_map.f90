@@ -2,7 +2,7 @@
 !> @author  Robert Schuster
 module mod_map
     use, intrinsic :: ISO_C_Binding
-    use mod_fstd
+    use mod_hashcode
     implicit none
     private
 
@@ -59,7 +59,7 @@ module mod_map
     end type
     ! define the constructor for the map
     interface map
-        module procedure constructor_map
+        module procedure map_constructor
     end interface
 
 
@@ -69,19 +69,19 @@ contains
     ! procedures of the map ---------------------------------------------------
 
     ! the constructor of the map
-    function constructor_map(isize)
-        class(map), pointer :: constructor_map
+    function map_constructor(isize)
+        class(map), pointer :: map_constructor
         integer, intent(in), optional :: isize
         ! allocate the memory for the new map
-        allocate(constructor_map)
-        constructor_map%table => null()
+        allocate(map_constructor)
+        map_constructor%table => null()
         ! set the initial size of the table
         if (present(isize)) then
-            constructor_map%initialSize = isize
+            map_constructor%initialSize = isize
         else
-            constructor_map%initialSize = 10000
+            map_constructor%initialSize = 10000
         end if
-        constructor_map%nelements = 0
+        map_constructor%nelements = 0
     end function
 
     !> @public
