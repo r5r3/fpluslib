@@ -7,7 +7,7 @@ program test_string
 
     ! create a string object from a string
     test = "test"
-    str => string(test)
+    str => string("test")
     print*, str%hashcode()
 
 end program test_string

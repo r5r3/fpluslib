@@ -55,11 +55,9 @@ contains
         ! copy the text to the byte array
         select type (text)
             type is (character (len=*))
-                print*, text
                 l = len_trim(text)
                 allocate (string_constructor%bytes(l))
                 string_constructor%bytes = transfer(text, string_constructor%bytes)
-                print*, associated(string_constructor%bytes), l, text
             class default
                 write (0, "(A)") "The type of text in the string constructor is not yet supported!"
                 call exit(1)
