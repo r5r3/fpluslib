@@ -8,17 +8,20 @@ else
 	DYLIBEXT=so
 endif
 
-# use intel fortran compiler if available
-HAVEIFORT=$(shell which ifort)
-ifneq ($(findstring ifort,$(HAVEIFORT)),)
-	FC=ifort
-	CC=icc
+# select a compiler, first choice if intel, then pgf, then gnu-mp-4.8
+FC=$(shell scripts/select_compiler.py --compilers intel pgf gnu-mp-4.8 --fc)
+CC=$(shell scripts/select_compiler.py --compilers intel pgf gnu-mp-4.8 --cc)
+ifeq ($(FC),ifort)
 	FCFLAGS=-module include -fpic
 	DYLIBFLAGS=-shared -fpic
 	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd
-else
-	FC=gfortran-mp-4.8
-	CC=gcc
+endif
+ifeq ($(FC),pgfortran)
+	FCFLAGS=-module include -fpic
+	DYLIBFLAGS=-shared -fpic
+	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd
+endif
+ifeq ($(FC),gfortran-mp-4.8)
 	FCFLAGS=-Jinclude -fpic
 	DYLIBFLAGS=-shared -fpic -install_name $(shell pwd)/lib/libfstd.$(DYLIBEXT)
 	LDFLAGS=-Llib -lfstd
