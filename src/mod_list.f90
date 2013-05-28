@@ -22,7 +22,7 @@ module mod_list
         !> @brief   Returns the first value in the list.
         procedure, public :: last => list_last
         !> @brief   Returns an iterator over the values in this list in proper sequence.
-        procedure, public :: iterator => list_iterator
+        procedure, public :: getiterator => list_getiterator
         !> @brief   Removes all values from this list and deallocates all internal used memory
         procedure, public :: clear => list_clear
         !> @brief   Returns the number of elements in this list
@@ -42,10 +42,10 @@ module mod_list
     contains
         procedure, public :: hasnext => listiterator_hasnext
         procedure, public :: next => listiterator_next
-        procedure, private :: nextelement => listiterator_nextelement
+        procedure, private :: next_element => listiterator_nextelement
     end type
-
-
+    
+    
     ! a type for the elements
     type, private :: element
         class(*), pointer :: value
@@ -190,24 +190,24 @@ contains
     !> @param[in]   dir     the direction in which the iterator should run. 0=forwards, 1=backwards.
     !> @return      Returns an initialized iterator object. It is the only way to create an
     !>              iterator object.
-    function list_iterator(this, dir)
+    function list_getiterator(this, dir)
         class(list), target :: this
         integer, optional :: dir
-        class(listiterator), pointer :: list_iterator
+        class(listiterator), pointer :: list_getiterator
 
         ! create the new iterator
-        allocate(list_iterator)
+        allocate(list_getiterator)
 
         ! set the settings of the iterator
-        list_iterator%thelist => this
+        list_getiterator%thelist => this
         if (present(dir) .and. dir == 1) then
             ! go backwards through the list
-            list_iterator%direction = 1
-            list_iterator%currentElement => this%lastElement
+            list_getiterator%direction = 1
+            list_getiterator%currentElement => this%lastElement
         else
             ! go foreward through the list
-            list_iterator%direction = 0
-            list_iterator%currentElement => this%firstElement
+            list_getiterator%direction = 0
+            list_getiterator%currentElement => this%firstElement
         end if
     end function
 
@@ -224,9 +224,9 @@ contains
 
         ! are the elements in the list?
         if (this%nelements > 0) then
-            iter => this%iterator()
+            iter => this%getiterator()
             do while(iter%hasnext())
-                elem => iter%nextelement()
+                elem => iter%next_element()
                 ! deallocate the value, if it is a copy
                 if (elem%valueIsCopy) then
                     deallocate(elem%value)
@@ -273,7 +273,7 @@ contains
         listiterator_next => null()
 
         ! get the next element object
-        nextelement => this%nextelement()
+        nextelement => this%next_element()
 
         ! assign the result
         if (associated(nextelement)) then

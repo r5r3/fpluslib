@@ -16,9 +16,6 @@ module mod_iterator
             class(iterator) :: this
             logical :: generic_hasnext
         end function
-    end interface
-
-    abstract interface
         function generic_next(this)
             import :: iterator
             class(iterator) :: this

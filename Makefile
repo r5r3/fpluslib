@@ -13,17 +13,20 @@ FC=$(shell scripts/select_compiler.py --compilers intel pgf gnu-mp-4.8 --fc)
 CC=$(shell scripts/select_compiler.py --compilers intel pgf gnu-mp-4.8 --cc)
 ifeq ($(FC),ifort)
 	FCFLAGS=-module include -fpic
-	DYLIBFLAGS=-shared -fpic
+	CCFLAGS=-fpic
+	DYLIBFLAGS=-shared
 	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd
 endif
 ifeq ($(FC),pgfortran)
-	FCFLAGS=-module include -fpic
-	DYLIBFLAGS=-shared -fpic
+	FCFLAGS=-module include -fPIC
+	CCFLAGS=-fPIC
+	DYLIBFLAGS=-shared
 	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd
 endif
 ifeq ($(FC),gfortran-mp-4.8)
 	FCFLAGS=-Jinclude -fpic
-	DYLIBFLAGS=-shared -fpic -install_name $(shell pwd)/lib/libfstd.$(DYLIBEXT)
+	CCFLAGS=-fpic
+	DYLIBFLAGS=-shared -install_name $(shell pwd)/lib/libfstd.$(DYLIBEXT)
 	LDFLAGS=-Llib -lfstd
 endif
 
@@ -74,7 +77,7 @@ build/%.o: src/%.f90
 	$(FC) $(FCFLAGS) -c -o $@ $<
 
 build/%.o: src/%.c
-	$(CC) -c -o $@ $<
+	$(CC) $(CCFLAGS) -c -o $@ $<
 
 build/%.o: testsrc/%.f90
 	$(FC) $(FCFLAGS) -c -o $@ $<
