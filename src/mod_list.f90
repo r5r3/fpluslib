@@ -43,7 +43,7 @@ module mod_list
     end type
     ! define the constructor for list
     interface list
-        module procedure constructor_list
+        module procedure list_constructor
     end interface
 
 
@@ -65,14 +65,14 @@ contains
     ! at first the procedures for the list ------------------------------------
 
     ! a constructor for the list
-    function constructor_list()
-        class(list), pointer :: constructor_list
+    function list_constructor()
+        class(list), pointer :: list_constructor
         ! allocate memory for the new list
-        allocate(constructor_list)
+        allocate(list_constructor)
         ! ensure that all pointers point to null
-        constructor_list%firstElement => null()
-        constructor_list%lastElement => null()
-        constructor_list%nelements = 0
+        list_constructor%firstElement => null()
+        list_constructor%lastElement => null()
+        list_constructor%nelements = 0
     end function
 
     !> @public
