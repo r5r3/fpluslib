@@ -46,7 +46,7 @@ program test_list
 
     print*, "Use an fast iterator to iterate through the list"
     print*, "-> at first forwards"
-    testiter => testlist%iterator()
+    testiter => testlist%getiterator()
     do while(testiter%hasnext())
         testvalue => testiter%next()
         print*, "Next value: ", toInteger(testvalue)
@@ -55,7 +55,7 @@ program test_list
     print*, ""
 
     print*, "-> then backwards"
-    testiter => testlist%iterator(1)
+    testiter => testlist%getiterator(1)
     do while(testiter%hasnext())
         testvalue => testiter%next()
         print*, "Next value: ", toInteger(testvalue)
@@ -73,7 +73,7 @@ program test_list
         call testlist%add(testnumber, copy=.true.)
     end do
     print*, "Five random numbers, once added as pointers, once added as copy"
-    testiter => testlist%iterator()
+    testiter => testlist%getiterator()
     do while(testiter%hasnext())
         testvalue => testiter%next()
         print*, "Next element: ", toRealK8(testvalue)

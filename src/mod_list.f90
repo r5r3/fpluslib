@@ -47,7 +47,7 @@ module mod_list
     
     
     ! a type for the elements
-    type, private :: element
+    type :: element
         class(*), pointer :: value
         class(element), pointer :: nextElement
         class(element), pointer :: prevElement

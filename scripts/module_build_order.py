@@ -47,7 +47,8 @@ if __name__ == '__main__':
     fileList = []
     for root, subFolders, files in os.walk(args.src):
         for file in files:
-            fileList.append((root,file))
+            if not file.endswith("~"):
+                fileList.append((root,file))
     
     # loop over all module and check if modules that are used are build before 
     # they are used.
