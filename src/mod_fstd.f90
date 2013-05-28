@@ -7,14 +7,14 @@ module mod_fstd
 
     ! this is a basic type for objects, all classes should extend this type
     ! as it contains usefull common functions
-!    type, abstract, public :: object
-!    contains
-!        procedure (abstract_hashcode), deferred :: hashcode
-!        procedure (abstract_tostring), deferred :: tostring
-!    end type
+    type, abstract, public :: object
+    contains
+        procedure (abstract_hashcode), deferred :: hashcode
+        procedure (abstract_tostring), deferred :: tostring
+    end type
 
     !> @brief   a simple string type used by all types that extend object
-    type, public :: string
+    type, extends(object), public :: string
         ! a workaround, should be character (len=:), but this is not yet supported by gfortran 4.8
         integer (kind=1), dimension(:), pointer, private :: bytes
     contains
@@ -25,19 +25,19 @@ module mod_fstd
         module procedure string_constructor
     end interface
 
-!    abstract interface
-!        function abstract_hashcode(this)
-!            import :: object
-!            class(object) :: this
-!            integer (kind=8) :: abstract_hashcode
-!        end function
-!        function abstract_tostring(this)
-!            import :: object
-!            import :: string
-!            class(object), target :: this
-!            class(string), pointer :: abstract_tostring
-!        end function
-!    end interface
+    abstract interface
+        function abstract_hashcode(this)
+            import :: object
+            class(object) :: this
+            integer (kind=8) :: abstract_hashcode
+        end function
+        function abstract_tostring(this)
+            import :: object
+            import :: string
+            class(object), target :: this
+            class(string), pointer :: abstract_tostring
+        end function
+    end interface
 
 contains
 
@@ -46,19 +46,20 @@ contains
     !> @brief   Create a new initialized string
     function string_constructor(text)
         class(string), pointer :: string_constructor
-        class(*), pointer :: text
+        class(*), intent(in) :: text
         ! local variable
         integer :: l
 
         ! allocate the string object
         allocate(string_constructor)
-
         ! copy the text to the byte array
         select type (text)
-            type is (character(len=*))
+            type is (character (len=*))
+                print*, text
                 l = len_trim(text)
                 allocate (string_constructor%bytes(l))
                 string_constructor%bytes = transfer(text, string_constructor%bytes)
+                print*, associated(string_constructor%bytes), l, text
             class default
                 write (0, "(A)") "The type of text in the string constructor is not yet supported!"
                 call exit(1)

@@ -6,7 +6,6 @@ module mod_map
     implicit none
     private
 
-
     ! the hash table is filled with nodes where each node can have children
     type node
         ! a pointer to the next node

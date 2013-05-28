@@ -3,8 +3,11 @@ program test_string
     implicit none
 
     class(string), pointer :: str
+    character (len=100) :: test
 
     ! create a string object from a string
-    str => string("test")
+    test = "test"
+    str => string(test)
+    print*, str%hashcode()
 
 end program test_string
