@@ -40,6 +40,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__.replace("_at_", "@"), formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--src', required=True, help = "The folder which contains the source files")
     parser.add_argument('--obj', required=True, help = "The folder which will contain the compiled objects")
+    parser.add_argument('--mkobjdir', required=False, action='store_const', const=True, help = "Create the folder structure for the object file and do nothing else.")
     #pares the arguments
     args = parser.parse_args()
 
@@ -47,9 +48,19 @@ if __name__ == '__main__':
     fileList = []
     for root, subFolders, files in os.walk(args.src):
         for file in files:
-            if not file.endswith("~"):
+            if not file.endswith("~") and not file.endswith(".inc"):
                 fileList.append((root,file))
     
+    # create the output folders if requested
+    if args.mkobjdir == True:
+        for file in fileList:
+            dir = file[0].replace(args.src, args.obj)
+            if not os.path.exists(dir):
+                print("create folder %s" % dir)
+                os.makedirs(dir)
+        # every thing done, exit
+        exit(0)
+        
     # loop over all module and check if modules that are used are build before 
     # they are used.
     ready = False

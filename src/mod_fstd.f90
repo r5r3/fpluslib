@@ -19,6 +19,9 @@ module mod_fstd
             class(object) :: this
             integer (kind=8) :: abstract_hashcode
         end function
+    end interface
+
+    abstract interface
         function abstract_tostring(this)
             import :: object
             class(object) :: this
