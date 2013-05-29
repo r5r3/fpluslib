@@ -8,7 +8,7 @@ ifeq ($(OS),Darwin)
 	EXTLIB=-L/opt/local/lib -ludunits2
 else
 	DYLIBEXT=so
-	EXTLIB=-ludunits2
+	EXTLIB=-ludunits2 -lexpat
 endif
 
 # select a compiler, first choice if intel, then pgf, then gnu-mp-4.8
