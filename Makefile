@@ -58,7 +58,7 @@ doc/html: src/* testsrc/* doc/Doxyfile
 	doxygen doc/Doxyfile
 
 # compile tests
-tests: bin build include bin/test-up-1 bin/test-up-2 bin/test-list bin/test-map bin/test-string
+tests: bin build include bin/test-up-1 bin/test-up-2 bin/test-list bin/test-map
 
 bin/test-up-1: testsrc/test-up-1.f90
 	$(FC) $(FCFLAGS) -o $@ $<
@@ -71,9 +71,6 @@ bin/test-list: lib/libfstd.$(DYLIBEXT) build/test-list.o
 
 bin/test-map: lib/libfstd.$(DYLIBEXT) testsrc/test-map.f90
 	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-map.f90
-
-bin/test-string: lib/libfstd.$(DYLIBEXT) testsrc/test-string.f90
-	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-string.f90
 
 # rule to compile fortran files
 build/%.o: src/%.f90
