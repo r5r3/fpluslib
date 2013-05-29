@@ -10,7 +10,7 @@ module mod_fstd
     type, abstract, public :: object
     contains
         procedure (abstract_hashcode), deferred :: hashcode
-        procedure (abstract_tostring), deferred :: tostring
+!        procedure (abstract_tostring), deferred :: tostring
     end type
 
     abstract interface
@@ -21,13 +21,13 @@ module mod_fstd
         end function
     end interface
 
-    abstract interface
-        function abstract_tostring(this)
-            import :: object
-            class(object) :: this
-            character (len=*) :: abstract_tostring
-        end function
-    end interface
+!    abstract interface
+!        function abstract_tostring(this)
+!            import :: object
+!            class(object) :: this
+!            character (len=*), pointer :: abstract_tostring
+!        end function
+!    end interface
 
 contains
 
