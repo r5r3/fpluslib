@@ -8,19 +8,19 @@ program test_datetime
     character(len=:), allocatable :: text
     integer :: i
     
-    now = datetime()
+    now = new_datetime()
 
     print*, "Date and time: ", now%to_string()
     print*, "hashcode:      ", now%hashcode()
     
     ! put the date into a map
-    dates = map(10)
+    dates = new_map(10)
     call dates%add(now, 1, .true.)
 
     ! wait some time
     call sleep(1)
 
-    now = datetime()
+    now = new_datetime()
 
     print*, "Date and time: ", now%to_string()
     print*, "hashcode:      ", now%hashcode()
@@ -50,7 +50,8 @@ program test_datetime
     print*, ""
 
     ! create a new date with a given value
-    now = datetime(hour=12, second=56)
+    now = new_datetime(hour=12,second=56.0_8)
+    print*, "New datetime initialized with hour=12 and second=56..."
     print*, "Date and time: ", now%to_string()
     print*, "hashcode:      ", now%hashcode()
     call dates%add(now, 6, .true.)

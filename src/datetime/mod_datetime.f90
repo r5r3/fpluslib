@@ -20,9 +20,9 @@ module mod_datetime
         !> @brief   add time of a given unit
         procedure, public :: add => datetime_add
     end type
-    interface datetime
-        module procedure datetime_constructor
-    end interface
+
+    ! make the constructor public
+    public :: new_datetime, get_date_from_seconds_since_1970
 
     ! pointer to the unit-system of the udunits2 library used for time conversion
     type(UT_SYSTEM_PTR) utsystem
@@ -49,8 +49,9 @@ contains
     !>              datetime objects
     !> @details     If any of the optional arguments is given, then the new datetime object
     !>              will represent the date and time specified by the arguments. Missing
-    !>              arguments are set to zero. If no argument is present, then the new
-    !>              datetime object will represent the time of creation.
+    !>              arguments are set to zero (year, month, and day to 1).
+    !>              If no argument is present, then the new datetime object will
+    !>              represent the time of creation.
     !> @param[in]   year    the year of the new date, optional
     !> @param[in]   month   the month of the new date, optional
     !> @param[in]   day     the day of the new date, optional
@@ -58,10 +59,12 @@ contains
     !> @param[in]   minute  the minute of the new date, optional
     !> @param[in]   seconds the seconds of the new date, optional
     !> @return      An initialized new datetime object.
-    function datetime_constructor(year, month, day, hour, minute, second)
-        type(datetime) :: datetime_constructor
+    function new_datetime(year, month, day, hour, minute, second) result(dt)
+        type(datetime) :: dt
         integer, optional :: year, month, day, hour, minute
         real (kind=8), optional :: second
+
+        ! local variables
         real (kind=8) :: isecond
         integer :: now(8)
 
@@ -73,17 +76,17 @@ contains
             if (present(year)) then
                 now(1) = year
             else
-                now(1) = 0
+                now(1) = 1
             end if
             if (present(month)) then
                 now(2) = month
             else
-                now(2) = 0
+                now(2) = 1
             end if
             if (present(day)) then
                 now(3) = day
             else
-                now(3) = 0
+                now(3) = 1
             end if
             if (present(hour)) then
                 now(5) = hour
@@ -105,7 +108,7 @@ contains
             call date_and_time(values=now)
             isecond = real(now(7), 8)
         end if
-        datetime_constructor%time_in_sec1970 = get_seconds_since_1970(now(1),now(2),now(3),now(5),now(6),isecond)
+        dt%time_in_sec1970 = get_seconds_since_1970(now(1),now(2),now(3),now(5),now(6),isecond)
     end function
     
     !> @public
@@ -134,7 +137,7 @@ contains
         
         ! allocate memory for the string
         allocate (character(len=19) :: res)
-        
+
         ! calculate the parts of the data
         call get_date_from_seconds_since_1970(this%time_in_sec1970,year,month,day,hour,minute,second)
         write (res,"(I4.4,A,I2.2,A,I2.2,A,I2.2,A,I2.2,A,I2.2)"), year, "-", month, "-", day, " ", hour, ":", minute, ":", int(second)    

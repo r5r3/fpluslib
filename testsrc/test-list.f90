@@ -9,7 +9,7 @@ program test_list
     real (kind=8) :: testnumber
 
     ! create a new list
-    testlist = list()
+    testlist = new_list()
 
     ! add some elements
     print*, ""

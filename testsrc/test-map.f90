@@ -15,7 +15,7 @@ program test_map
     allocate(value)
 
     ! create the map
-    testmap = map(2)
+    testmap = new_map(2)
 
     ! show the number of elements in the map
     print*, "Values in the map:", testmap%length()

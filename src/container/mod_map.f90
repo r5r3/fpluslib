@@ -21,10 +21,6 @@ module mod_map
         contains
         procedure release                   ! deallocate the memory of this node and all children
     end type
-    ! define the constructor for the node
-    interface node
-        module procedure constructor_node
-    end interface
 
 
     ! the hash table itself consists of an array of nodepointers where each can point to an node object
@@ -56,10 +52,8 @@ module mod_map
         !> @brief   Returns the number of elements in this list
         procedure, public :: length => map_length
     end type
-    ! define the constructor for the map
-    interface map
-        module procedure map_constructor
-    end interface
+    ! make the constructor for the map public
+    public :: new_map
 
 
 ! the implementation of the procedures follows
@@ -68,17 +62,17 @@ contains
     ! procedures of the map ---------------------------------------------------
 
     ! the constructor of the map
-    function map_constructor(isize)
-        type(map) :: map_constructor
+    function new_map(isize)
+        type(map) :: new_map
         integer, intent(in), optional :: isize
 
         ! set the initial size of the table
         if (present(isize)) then
-            map_constructor%initialSize = isize
+            new_map%initialSize = isize
         else
-            map_constructor%initialSize = 10000
+            new_map%initialSize = 10000
         end if
-        map_constructor%nelements = 0
+        new_map%nelements = 0
     end function
 
     !> @public
@@ -119,7 +113,7 @@ contains
         end if
 
         ! create a new node
-        newnode => node(key, value, copyValue)
+        newnode => new_node(key, value, copyValue)
 
         ! calculate the position in the table
         pos = this%positionForHash(newnode%hash)
@@ -349,30 +343,30 @@ contains
     ! procedures of the node --------------------------------------------------
 
     ! the constructor
-    function constructor_node(key, value, copy)
-        class(node), pointer :: constructor_node
+    function new_node(key, value, copy)
+        class(node), pointer :: new_node
         class(*), intent(in) :: key
         class(*), target :: value
         logical, optional :: copy
 
         ! allocate the memory for the new node
-        allocate(constructor_node)
-        constructor_node%next => null()
+        allocate(new_node)
+        new_node%next => null()
 
         ! copy the key
-        allocate(constructor_node%key, source=key)
+        allocate(new_node%key, source=key)
 
         ! copy or link the value
         if (present(copy) .and. copy .eqv. .true.) then
-            allocate(constructor_node%value, source=value)
-            constructor_node%valueIsCopy = .true.
+            allocate(new_node%value, source=value)
+            new_node%valueIsCopy = .true.
         else
-            constructor_node%value => value
-            constructor_node%valueIsCopy = .false.
+            new_node%value => value
+            new_node%valueIsCopy = .false.
         end if
 
         ! calculate the hash code
-        constructor_node%hash = calculateHash(key)
+        new_node%hash = calculateHash(key)
     end function
 
     ! free the memory allocated inside of this node

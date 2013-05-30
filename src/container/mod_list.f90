@@ -12,10 +12,6 @@ module mod_list
         class(element), pointer :: prevElement => null()
         logical :: valueIsCopy
     end type
-    ! define the constructor for list
-    interface element
-        module procedure constructor_element
-    end interface
 
 
     ! a type for the linked list itself
@@ -41,10 +37,8 @@ module mod_list
         !> @brief   Returns the number of elements in this list
         procedure, public :: length => list_length
     end type
-    ! define the constructor for list
-    interface list
-        module procedure list_constructor
-    end interface
+    ! make the constructor public
+    public :: new_list
 
 
     ! a iterator for all elements of a list
@@ -65,13 +59,13 @@ contains
     ! at first the procedures for the list ------------------------------------
 
     ! a constructor for the list
-    function list_constructor()
-        type(list) :: list_constructor
+    function new_list()
+        type(list) :: new_list
 
         ! ensure that all pointers point to null
-        list_constructor%firstElement => null()
-        list_constructor%lastElement => null()
-        list_constructor%nelements = 0
+        new_list%firstElement => null()
+        new_list%lastElement => null()
+        new_list%nelements = 0
     end function
 
     !> @public
@@ -97,10 +91,10 @@ contains
 
         ! create a new element
         if (this%nelements == 0) then
-            this%firstElement => constructor_element(value, null(), null(), copyValue)
+            this%firstElement => new_element(value, null(), null(), copyValue)
             this%lastElement => this%firstElement
         else
-            this%lastElement%nextElement => constructor_element(value, this%lastElement, null(), copyValue)
+            this%lastElement%nextElement => new_element(value, this%lastElement, null(), copyValue)
             this%lastElement => this%lastElement%nextElement
         end if
         ! count the elements
@@ -300,24 +294,24 @@ contains
     ! then the procedures for the elements ------------------------------------
 
     ! a constructor for the element
-    function constructor_element(value, prev, next, copy)
+    function new_element(value, prev, next, copy)
         class(*), target :: value
         class(element), pointer :: next, prev
-        class(element), pointer :: constructor_element
+        class(element), pointer :: new_element
         logical, optional :: copy
 
         ! allocate memory for the new list
-        allocate(constructor_element)
+        allocate(new_element)
         ! initialize the pointers
-        constructor_element%nextElement => next
-        constructor_element%prevElement => prev
+        new_element%nextElement => next
+        new_element%prevElement => prev
         ! copy the value or create a pointer to it
         if (present(copy) .and. copy .eqv. .true.) then
-            allocate(constructor_element%value, source=value)
-            constructor_element%valueIsCopy = .true.
+            allocate(new_element%value, source=value)
+            new_element%valueIsCopy = .true.
         else
-            constructor_element%value => value
-            constructor_element%valueIsCopy = .false.
+            new_element%value => value
+            new_element%valueIsCopy = .false.
         end if
     end function
 
