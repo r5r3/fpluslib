@@ -1,5 +1,6 @@
 !> @brief   some function for the calculation of hash codes
 module mod_hashcode
+    use mod_fstd
     implicit none
     public
 
@@ -70,6 +71,8 @@ contains
                 !chars = transfer(int(key,8), chars)
                 call C_long2intarray(key, chars)
                 call C_sdbm(chars, 8, calculateHash)
+            class is (object)
+                calculateHash = key%hashcode()
             class default
                 ! not yet implemented for other types
                 write (0, "(A)") "Unable to calculate a hash code for the given type of key!"

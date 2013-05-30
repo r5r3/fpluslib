@@ -1,7 +1,6 @@
 ! This Module conatins some basic typs and subroutines used by different
 ! parts of the library
 module mod_fstd
-    use mod_hashcode
     implicit none
     private
 
@@ -10,7 +9,7 @@ module mod_fstd
     type, abstract, public :: object
     contains
         procedure (abstract_hashcode), deferred :: hashcode
-!        procedure (abstract_tostring), deferred :: tostring
+        procedure (abstract_to_string), deferred :: to_string
     end type
 
     abstract interface
@@ -21,13 +20,13 @@ module mod_fstd
         end function
     end interface
 
-!    abstract interface
-!        function abstract_tostring(this)
-!            import :: object
-!            class(object) :: this
-!            character (len=*), pointer :: abstract_tostring
-!        end function
-!    end interface
+    abstract interface
+        function abstract_to_string(this)
+            import :: object
+            class(object) :: this
+            character (len=:), allocatable :: abstract_to_string
+        end function
+    end interface
 
 contains
 

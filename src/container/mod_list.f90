@@ -35,7 +35,7 @@ module mod_list
         !> @brief   Returns the first value in the list.
         procedure, public :: last => list_last
         !> @brief   Returns an iterator over the values in this list in proper sequence.
-        procedure, public :: getiterator => list_getiterator
+        procedure, public :: get_iterator => list_get_iterator
         !> @brief   Removes all values from this list and deallocates all internal used memory
         procedure, public :: clear => list_clear
         !> @brief   Returns the number of elements in this list
@@ -66,9 +66,8 @@ contains
 
     ! a constructor for the list
     function list_constructor()
-        class(list), pointer :: list_constructor
-        ! allocate memory for the new list
-        allocate(list_constructor)
+        type(list) :: list_constructor
+
         ! ensure that all pointers point to null
         list_constructor%firstElement => null()
         list_constructor%lastElement => null()
@@ -190,24 +189,21 @@ contains
     !> @param[in]   dir     the direction in which the iterator should run. 0=forwards, 1=backwards.
     !> @return      Returns an initialized iterator object. It is the only way to create an
     !>              iterator object.
-    function list_getiterator(this, dir)
+    function list_get_iterator(this, dir)
         class(list), target :: this
         integer, optional :: dir
-        class(listiterator), pointer :: list_getiterator
-
-        ! create the new iterator
-        allocate(list_getiterator)
+        type(listiterator) :: list_get_iterator
 
         ! set the settings of the iterator
-        list_getiterator%thelist => this
+        list_get_iterator%thelist => this
         if (present(dir) .and. dir == 1) then
             ! go backwards through the list
-            list_getiterator%direction = 1
-            list_getiterator%currentElement => this%lastElement
+            list_get_iterator%direction = 1
+            list_get_iterator%currentElement => this%lastElement
         else
             ! go foreward through the list
-            list_getiterator%direction = 0
-            list_getiterator%currentElement => this%firstElement
+            list_get_iterator%direction = 0
+            list_get_iterator%currentElement => this%firstElement
         end if
     end function
 
@@ -219,12 +215,12 @@ contains
     !> @param[in]   this    reference to the list object, automatically set by fortran
     subroutine list_clear(this)
         class(list) :: this
-        class(listiterator), pointer :: iter
+        type(listiterator) :: iter
         class(element), pointer :: elem
 
         ! are the elements in the list?
         if (this%nelements > 0) then
-            iter => this%getiterator()
+            iter = this%get_iterator()
             do while(iter%hasnext())
                 elem => iter%next_element()
                 ! deallocate the value, if it is a copy
@@ -233,7 +229,6 @@ contains
                 end if
                 deallocate(elem)
             end do
-            deallocate(iter)
 
             ! set the pointers back to null
             this%firstElement => null()

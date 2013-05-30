@@ -2,14 +2,14 @@ program test_list
     use mod_container
     implicit none
     ! a variable for a new list
-    class(list), pointer :: testlist
+    type(list) :: testlist
     class(*), pointer :: testvalue
-    class(iterator), pointer :: testiter
+    type(listiterator) :: testiter
     integer :: i
     real (kind=8) :: testnumber
 
     ! create a new list
-    testlist => list()
+    testlist = list()
 
     ! add some elements
     print*, ""
@@ -46,21 +46,19 @@ program test_list
 
     print*, "Use an fast iterator to iterate through the list"
     print*, "-> at first forwards"
-    testiter => testlist%getiterator()
+    testiter = testlist%get_iterator()
     do while(testiter%hasnext())
         testvalue => testiter%next()
         print*, "Next value: ", toInteger(testvalue)
     end do
-    deallocate(testiter)
     print*, ""
 
     print*, "-> then backwards"
-    testiter => testlist%getiterator(1)
+    testiter = testlist%get_iterator(1)
     do while(testiter%hasnext())
         testvalue => testiter%next()
         print*, "Next value: ", toInteger(testvalue)
     end do
-    deallocate(testiter)
     print*, ""
 
     ! remove all elements
@@ -73,16 +71,14 @@ program test_list
         call testlist%add(testnumber, copy=.true.)
     end do
     print*, "Five random numbers, once added as pointers, once added as copy"
-    testiter => testlist%getiterator()
+    testiter = testlist%get_iterator()
     do while(testiter%hasnext())
         testvalue => testiter%next()
         print*, "Next element: ", toRealK8(testvalue)
     end do
-    deallocate(testiter)
     print*, ""
 
     ! remove all elements before deallocation, finalization is not yet supported!
     call testlist%clear()
-    deallocate(testlist)
 
 end program test_list

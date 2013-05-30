@@ -69,11 +69,9 @@ contains
 
     ! the constructor of the map
     function map_constructor(isize)
-        class(map), pointer :: map_constructor
+        type(map) :: map_constructor
         integer, intent(in), optional :: isize
-        ! allocate the memory for the new map
-        allocate(map_constructor)
-        map_constructor%table => null()
+
         ! set the initial size of the table
         if (present(isize)) then
             map_constructor%initialSize = isize

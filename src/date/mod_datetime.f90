@@ -1,10 +1,25 @@
-! this module contains functions for calculation on dates
-
-module mod_date
+!> @brief   this module contains functions for calculation on dates
+!> @author  Robert Schuster
+module mod_datetime
     use f_udunits_2
+    use mod_hashcode
+    use mod_fstd
     implicit none
-	private
-	
+    private
+
+    !> @brief   A date and time representation, the time zone is so fare ignored
+    type, extends(object), public :: datetime
+        real (kind=8), private :: time_in_sec1970
+    contains
+        !> @brief   calculates a hashcode for this datetime object
+        procedure, public :: hashcode => datetime_hashcode
+        !> @brief   returns a string containing the date and time in ISO format
+        procedure, public :: to_string => datetime_to_string
+    end type
+    interface datetime
+        module procedure datetime_constructor
+    end interface
+
     ! pointer to the unit-system of the udunits2 library used for time conversion
     type(UT_SYSTEM_PTR) utsystem
     
@@ -19,37 +34,55 @@ module mod_date
     ! this varrable is set to true afert initialization
     logical :: isInitialized = .false.
     
-    !> @brief   A date and time representation, the time zone is so fare ignored
-    type, public :: date
-        real (kind=8), private :: time
-    end type
-    interface date
-        module procedure date_constructor
-    end interface
 
-    ! the contents of the module follows
-    contains
-    
-    ! procedures for type data ------------------------------------------------
+! the contents of the module follows
+contains
 
-    function date_constructor()
-        class(date), pointer :: date_constructor
+   ! procedures for type data ------------------------------------------------
+
+    function datetime_constructor()
+        type(datetime) :: datetime_constructor
         integer :: now(8)
 
         ! init the module if needed
         if (.not. isInitialized) call timehelper_init()
 
-        !create the date object
-        allocate(date_constructor)
-
         ! get the curent date and time
         call date_and_time(values=now)
-        date_constructor%time = get_seconds_since_1970(now(1),now(2),now(3),now(5),now(6),real(now(7), 8))
-        print*, date_constructor%time
+        datetime_constructor%time_in_sec1970 = get_seconds_since_1970(now(1),now(2),now(3),now(5),now(6),real(now(7), 8))
+    end function
+    
+    !> @brief   calculates a hashcode for this datetime object
+    !> @details the hashcode is calculated for the time in seconds 
+    !>          since 1970 plus the string datetime
+    integer(kind=8) function datetime_hashcode(this) result(res)
+        class(datetime) :: this
+        integer (kind=1), dimension(16) :: chars
+        
+        call C_double2intarray(this%time_in_sec1970, chars(1:8))
+        ! write the string "datetime" to the end of the array
+        chars(9:16) = (/100, 97, 116, 101, 116, 105, 109, 101/)
+        call C_sdbm(chars, 16, res)
     end function
 
-
-    ! procedure that don't belong to a type
+    !> @brief   returns a string containing the date and time in ISO format
+    function datetime_to_string(this) result(res)
+        class(datetime) :: this
+        character (len=:), allocatable :: res
+        
+        ! locale variables
+        integer :: year,month,day,hour,minute
+        real (kind=8) :: second
+        
+        ! allocate memory for the string
+        allocate (character(len=19) :: res)
+        
+        ! calculate the parts of the data
+        call get_date_from_seconds_since_1970(this%time_in_sec1970,year,month,day,hour,minute,second)
+        write (res,"(I4.4,A,I2.2,A,I2.2,A,I2.2,A,I2.2,A,I2.2)"), year, "-", month, "-", day, " ", hour, ":", minute, ":", int(second)    
+    end function
+    
+    ! procedure that don't belong to a type -----------------------------------
 
     ! initialize this module
     subroutine timehelper_init()

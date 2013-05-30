@@ -27,7 +27,7 @@ ifeq ($(FC),pgfortran)
 	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd $(EXTLIB)
 endif
 ifeq ($(FC),gfortran-mp-4.8)
-	FCFLAGS=-Jinclude -fpic
+	FCFLAGS=-Jinclude -fpic -ffree-line-length-none
 	CCFLAGS=-fpic $(EXTINC)
 	DYLIBFLAGS=-shared -install_name $(shell pwd)/lib/libfstd.$(DYLIBEXT) $(EXTLIB)
 	LDFLAGS=-Llib -lfstd $(EXTLIB)
@@ -61,7 +61,7 @@ doc/html: src/* testsrc/* doc/Doxyfile
 	doxygen doc/Doxyfile
 
 # compile tests
-tests: bin build include bin/test-up-1 bin/test-up-2 bin/test-list bin/test-map bin/test-date
+tests: bin build include bin/test-up-1 bin/test-up-2 bin/test-list bin/test-map bin/test-datetime
 
 bin/test-up-1: testsrc/test-up-1.f90
 	$(FC) $(FCFLAGS) -o $@ $<
@@ -75,8 +75,8 @@ bin/test-list: lib/libfstd.$(DYLIBEXT) build/test-list.o
 bin/test-map: lib/libfstd.$(DYLIBEXT) testsrc/test-map.f90
 	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-map.f90
 
-bin/test-date: lib/libfstd.$(DYLIBEXT) testsrc/test-date.f90
-	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-date.f90
+bin/test-datetime: lib/libfstd.$(DYLIBEXT) testsrc/test-datetime.f90
+	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-datetime.f90
 
 # rule to compile fortran files
 build/%.o: src/%.f90

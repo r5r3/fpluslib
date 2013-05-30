@@ -3,7 +3,7 @@ program test_map
     implicit none
 
     ! a variable for the new map
-    class(map), pointer :: testmap
+    type(map) :: testmap
     character (len=50), allocatable :: key, value
     real (kind=4) :: v2
     real (kind=8) :: v8
@@ -15,7 +15,7 @@ program test_map
     allocate(value)
 
     ! create the map
-    testmap => map(2)
+    testmap = map(2)
 
     ! show the number of elements in the map
     print*, "Values in the map:", testmap%length()
