@@ -9,12 +9,16 @@ module mod_datetime
 
     !> @brief   A date and time representation, the time zone is so fare ignored
     type, extends(object), public :: datetime
-        real (kind=8), private :: time_in_sec1970
+        !> @brief   the time in seconds since 1970. This is the internal representation
+        !>          of the time used by this type. Direct modification are allowed.
+        real (kind=8), public :: time_in_sec1970
     contains
         !> @brief   calculates a hashcode for this datetime object
         procedure, public :: hashcode => datetime_hashcode
         !> @brief   returns a string containing the date and time in ISO format
         procedure, public :: to_string => datetime_to_string
+        !> @brief   add time of a given unit
+        procedure, public :: add => datetime_add
     end type
     interface datetime
         module procedure datetime_constructor
@@ -38,20 +42,73 @@ module mod_datetime
 ! the contents of the module follows
 contains
 
-   ! procedures for type data ------------------------------------------------
+    ! procedures for type data ------------------------------------------------
 
-    function datetime_constructor()
+    !> @public
+    !> @brief       Initializes a new datetime object. Use only this function to create new
+    !>              datetime objects
+    !> @details     If any of the optional arguments is given, then the new datetime object
+    !>              will represent the date and time specified by the arguments. Missing
+    !>              arguments are set to zero. If no argument is present, then the new
+    !>              datetime object will represent the time of creation.
+    !> @param[in]   year    the year of the new date, optional
+    !> @param[in]   month   the month of the new date, optional
+    !> @param[in]   day     the day of the new date, optional
+    !> @param[in]   hour    the hour of the new date, optional
+    !> @param[in]   minute  the minute of the new date, optional
+    !> @param[in]   seconds the seconds of the new date, optional
+    !> @return      An initialized new datetime object.
+    function datetime_constructor(year, month, day, hour, minute, second)
         type(datetime) :: datetime_constructor
+        integer, optional :: year, month, day, hour, minute
+        real (kind=8), optional :: second
+        real (kind=8) :: isecond
         integer :: now(8)
 
         ! init the module if needed
         if (.not. isInitialized) call timehelper_init()
 
-        ! get the curent date and time
-        call date_and_time(values=now)
-        datetime_constructor%time_in_sec1970 = get_seconds_since_1970(now(1),now(2),now(3),now(5),now(6),real(now(7), 8))
+        ! set the specified time or the current time?
+        if (present(year) .or. present(month) .or. present(day) .or. present(hour) .or. present(minute) .or. present(second)) then
+            if (present(year)) then
+                now(1) = year
+            else
+                now(1) = 0
+            end if
+            if (present(month)) then
+                now(2) = month
+            else
+                now(2) = 0
+            end if
+            if (present(day)) then
+                now(3) = day
+            else
+                now(3) = 0
+            end if
+            if (present(hour)) then
+                now(5) = hour
+            else
+                now(5) = 0
+            end if
+            if (present(minute)) then
+                now(6) = minute
+            else
+                now(6) = 0
+            end if
+            if (present(second)) then
+                isecond = second
+            else
+                isecond = 0.0_8
+            end if
+        else
+            ! get the curent date and time
+            call date_and_time(values=now)
+            isecond = real(now(7), 8)
+        end if
+        datetime_constructor%time_in_sec1970 = get_seconds_since_1970(now(1),now(2),now(3),now(5),now(6),isecond)
     end function
     
+    !> @public
     !> @brief   calculates a hashcode for this datetime object
     !> @details the hashcode is calculated for the time in seconds 
     !>          since 1970 plus the string datetime
@@ -65,6 +122,7 @@ contains
         call C_sdbm(chars, 16, res)
     end function
 
+    !> @public
     !> @brief   returns a string containing the date and time in ISO format
     function datetime_to_string(this) result(res)
         class(datetime) :: this
@@ -82,6 +140,77 @@ contains
         write (res,"(I4.4,A,I2.2,A,I2.2,A,I2.2,A,I2.2,A,I2.2)"), year, "-", month, "-", day, " ", hour, ":", minute, ":", int(second)    
     end function
     
+    !> @public
+    !> @brief       change the time stored in this object by adding time of a given unit
+    !> @details     All arguments are optional, the stored time is not changed, if non
+    !>              of the arguments is present.
+    !>              Example:
+    !>              @code
+    !>              type(datetime) :: now
+    !>              now = datetime()
+    !>              now%add(year=1, month=-1)
+    !>              @endcode
+    !> @param[in]   this    reference to the datetime object, automatically set by fortran
+    !> @param[in]   year    add a number of years, optional
+    !> @param[in]   month   add a number of months, optional
+    !> @param[in]   day     add a number of days, optional
+    !> @param[in]   hour    add a number of hours, optional
+    !> @param[in]   minute  add a number of minutes, optional
+    !> @param[in]   seconds add a number of seconds, optional
+    subroutine datetime_add(this, year, month, day, hour, minute, second)
+        class(datetime) :: this
+        integer, optional :: year, month, day, hour, minute
+        real (kind=8), optional :: second
+
+        ! local variables
+        integer :: iyear, imonth, iday, ihour, iminute
+        real (kind=8) :: isecond
+
+        ! add a day if present
+        if (present(day)) then
+            this%time_in_sec1970 = this%time_in_sec1970 + 86400 * day
+        end if
+        ! add a hour if present
+        if (present(hour)) then
+            this%time_in_sec1970 = this%time_in_sec1970 + 3600 * hour
+        end if
+        ! add a minute if present
+        if (present(minute)) then
+            this%time_in_sec1970 = this%time_in_sec1970 + 60 * minute
+        end if
+        ! add a second if present
+        if (present(second)) then
+            this%time_in_sec1970 = this%time_in_sec1970 + second
+        end if
+
+        ! add a month or a year
+        if (present(year) .or. present(month)) then
+            ! calculate the currently stored date
+            call get_date_from_seconds_since_1970(this%time_in_sec1970,iyear,imonth,iday,ihour,iminute,isecond)
+
+            ! add a year if present
+            if (present(year)) then
+                iyear = iyear + year
+            end if
+            ! add a month if present
+            if (present(month)) then
+                imonth = imonth + month
+                do while (imonth > 12)
+                    iyear = iyear + 1
+                    imonth = imonth - 12
+                end do
+                do while (imonth < 0)
+                    iyear = iyear - 1
+                    imonth = imonth + 12
+                end do
+            end if
+
+            ! convert back to seconds since 1970
+            this%time_in_sec1970 = get_seconds_since_1970(iyear,imonth,iday,ihour,iminute,isecond)
+        end if
+
+    end subroutine
+
     ! procedure that don't belong to a type -----------------------------------
 
     ! initialize this module

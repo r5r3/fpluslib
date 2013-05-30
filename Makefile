@@ -57,7 +57,7 @@ lib/libfstd.$(DYLIBEXT): lib $(SRCOBJ)
 	$(FC) $(DYLIBFLAGS) -o $@ $(SRCOBJ)
 
 # create the documentation with doxygen
-doc/html: src/* testsrc/* doc/Doxyfile
+doc/html: src/* src/*/* testsrc/* doc/Doxyfile
 	doxygen doc/Doxyfile
 
 # compile tests
