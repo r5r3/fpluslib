@@ -2,6 +2,9 @@
 !> @author  Robert Schuster
 module mod_list
     use mod_iterator
+    use mod_fstd
+    use mod_strings
+    use mod_hashcode
     implicit none
     private
 
@@ -15,7 +18,7 @@ module mod_list
 
 
     ! a type for the linked list itself
-    type, public :: list
+    type, extends (object), public :: list
         ! variables
         integer, private :: nelements
         class(element), pointer, private :: firstElement => null()
@@ -36,6 +39,10 @@ module mod_list
         procedure, public :: clear => list_clear
         !> @brief   Returns the number of elements in this list
         procedure, public :: length => list_length
+        !> @brief   Returns a string representation of the list
+        procedure, public :: to_string => list_to_string
+        !> @brief   Calculate a hashcode for the list
+        procedure, public :: hashcode => list_hashcode
     end type
     ! make the constructor public
     public :: new_list
@@ -58,7 +65,8 @@ contains
 
     ! at first the procedures for the list ------------------------------------
 
-    ! a constructor for the list
+    !> @public
+    !> @brief   Create a new initialzied list.
     function new_list()
         type(list) :: new_list
 
@@ -69,10 +77,68 @@ contains
     end function
 
     !> @public
+    !> @brief       Returns a string representation of the list
+    !> @param[in]   this    reference to the list object, automatically set by fortran
+    !> @return      Information about the content of the list
+    function list_to_string(this) result(res)
+        class(list) :: this
+        character (len=:), allocatable :: res
+
+        ! local variables
+        type(listiterator) :: iter
+        character (len=10) :: iformat
+        integer :: i
+        class(*), pointer :: value
+
+        ! it es a list and has a number of elements
+        res = "List, number of elements: " // number_to_string(this%length()) // char(10)
+
+        ! loop over all elements
+        if (this%length() > 0) then
+            res = res // char(10)
+            iter = this%get_iterator()
+            i = 1
+            write (iformat, "(A,I1,A)") "(I", ndigits_of_integer(this%length()), ")"
+            do while (iter%hasnext())
+                value => iter%next()
+                res = res // "    " // number_to_string(i, iformat) // ") " // type_to_string(value) // char(10)
+                i = i + 1
+            end do
+        end if
+    end function
+
+    !> @public
+    !> @brief       calculate a hashcode for the list
+    !> @details     this function takes all elements within the list into account. The calculated
+    !>              hashcode is the sum of all hashcodes from stored values
+    !> @param[in]   this    reference to the list object, automatically set by fortran
+    integer (kind=8) function list_hashcode(this) result (res)
+        class(list) :: this
+
+        ! local variables
+        type(listiterator) :: iter
+        integer (kind=8) :: i
+
+        ! the hashcode of the word "list"
+        res = calculateHash("list")
+
+        ! loop over all elements
+        if (this%length() > 0) then
+            iter = this%get_iterator()
+            i = 1_8
+            do while (iter%hasnext())
+                res = res + calculateHash(iter%next()) * i
+                i = i + 1_8
+            end do
+        end if
+
+    end function
+
+    !> @public
     !> @brief       Appends the specified value to the end of this list.
     !> @details     The specified value is added to the end of the list. It is possible to add a link
     !>              or a complete copy of the value.
-    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @param[in]   this    reference to the list object, automatically set by fortran
     !> @param[in]   value   value to be added
     !> @param[in]   copy    if present and .true., the value will be copied and not linked. The
     !>                      default operation is to store a pointer to the value.

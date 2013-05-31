@@ -78,7 +78,19 @@ program test_list
     end do
     print*, ""
 
+    ! test of the to_string method
+    print*, testlist%to_string()
+    print*, "Hashcode:", testlist%hashcode()
+
     ! remove all elements before deallocation, finalization is not yet supported!
+    print*, ""
+    print*, "remove all elements"
+    print*, ""
     call testlist%clear()
+
+    ! test of the to_string method
+    print*, testlist%to_string()
+    print*, "Hashcode:", testlist%hashcode()
+
 
 end program test_list
