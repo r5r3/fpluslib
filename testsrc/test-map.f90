@@ -67,6 +67,10 @@ program test_map
     call testmap%remove(2_8)
     call testmap%printContent()
 
+    ! test of the to_string methode
+    print*, testmap%to_string()
+    print*, "Hashcode: ", testmap%hashcode()
+
     ! clean up
     call testmap%clear()
     call testmap%printContent()

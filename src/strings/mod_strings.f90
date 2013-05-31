@@ -5,7 +5,7 @@ module mod_strings
 
 contains
 
-    !> @brief   determine the number of digits in a number
+    !> @brief   determine the number of digits in a number, a negative number has one digit more
     function ndigits_of_integer(number) result(ndigits)
         integer :: ndigits
         class(*) :: number
@@ -13,14 +13,18 @@ contains
             type is (integer (kind=4))
                 if (number > 0) then
                     ndigits = floor(log10(real(number)))+1
-                else
+                else if (number == 0) then
                     ndigits = 1
+                else if (number < 0) then
+                    ndigits = floor(log10(real(abs(number))))+2
                 end if
             type is (integer (kind=8))
                 if (number > 0) then
                     ndigits = floor(log10(real(number)))+1
-                else
+                else if (number == 0) then
                     ndigits = 1
+                else if (number < 0) then
+                    ndigits = floor(log10(real(abs(number))))+2
                 end if
             class default
                 ndigits = 0
@@ -35,7 +39,6 @@ contains
 
         ! local variables
         character (len=100) :: temp
-        character (len=10) :: iformat
         integer :: ndigits
 
         ! create the number string depending on the format
@@ -56,20 +59,18 @@ contains
                 if (present(format)) then
                     write(temp, format) number
                 else
-                    write (iformat, "(A,I1,A)") "(I", ndigits_of_integer(number), ")"
-                    write(temp, iformat) number
+                    write(temp, *) number
                 end if
             type is (integer (kind=8))
                 if (present(format)) then
                     write(temp, format) number
                 else
-                    write (iformat, "(A,I1,A)") "(I", ndigits_of_integer(number), ")"
-                    write(temp, iformat) number
+                    write(temp, *) number
                 end if
             class default
                 res = "unknown type in number_to_string"
         end select
-        res = trim(temp)
+        res = trim(adjustl(temp))
     end function
 
     !> @brief   Returns a string representation of intrinsic types and types that extend

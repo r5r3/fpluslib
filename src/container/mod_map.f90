@@ -2,7 +2,9 @@
 !> @author  Robert Schuster
 module mod_map
     use, intrinsic :: ISO_C_Binding
+    use mod_strings
     use mod_hashcode
+    use mod_fstd
     implicit none
     private
 
@@ -32,7 +34,7 @@ module mod_map
 
 
     !> @brief   The hash map type
-    type, public :: map
+    type, extends(object), public :: map
         class(nodepointer), dimension(:), pointer, private :: table => null()
         integer, private :: nelements
         integer, private :: initialSize
@@ -51,6 +53,10 @@ module mod_map
         procedure, public :: clear => map_clear
         !> @brief   Returns the number of elements in this list
         procedure, public :: length => map_length
+        !> @brief   Returns a string representation of the map
+        procedure, public :: to_string => map_to_string
+        !> @brief   Calculate the hashcode of the table
+        procedure, public :: hashcode => map_hashcode
     end type
     ! make the constructor for the map public
     public :: new_map
@@ -73,6 +79,94 @@ contains
             new_map%initialSize = 10000
         end if
         new_map%nelements = 0
+    end function
+
+    !> @public
+    !> @brief       Returns a string representation of the map
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    function map_to_string(this) result (res)
+        class(map) :: this
+        character (len=:), allocatable :: res
+
+        ! local variables
+        integer :: i, ndigits, j
+        character (len=10) :: iformat
+        class(node), pointer :: currentnode
+
+        ! it es a map and has a number of elements
+        res = "Map, number of elements: " // number_to_string(this%nelements) // &
+              ", capacity: " // number_to_string(this%initialSize) // char(10) // char(10)
+
+        ! format for the cell number
+        ndigits = ndigits_of_integer(this%initialSize)
+        write (iformat, "(A,I1,A)") "(I", ndigits, ")"
+
+        ! loop over the underlying table
+        do i = 1, this%initialSize
+            res = res // "    Cell " // number_to_string(i, iformat) // ") "
+            ! are there elements stored in this cell?
+            if (this%table(i)%length > 0) then
+                currentnode => this%table(i)%thenode
+                j = 1
+                do
+                    if (j == 1) then
+                        res = res // " => Node {" // char(10)
+                    else
+                        res = res // repeat(" ", ndigits + 11)  // " => Node {" // char(10)
+                    end if
+                    ! add the hashcode, key, and value
+                    res = res // repeat(" ", ndigits + 19) // "key      = " // type_to_string(currentnode%key) // char(10)
+                    res = res // repeat(" ", ndigits + 19) // "value    = " // type_to_string(currentnode%value) // char(10)
+                    res = res // repeat(" ", ndigits + 19) // "hashcode = " // type_to_string(currentnode%hash) // char(10)
+                    res = res // repeat(" ", ndigits + 15) // "}" // char(10)
+                    ! leave the loop if no additional elements are there
+                    if (.not. associated(currentnode%next)) then
+                        exit
+                    else
+                        currentnode => currentnode%next
+                        j = j + 1
+                    end if
+                end do
+            else
+                ! this cell is empty
+                res = res // "empty"
+            end if
+            res = res // char(10)
+        end do
+    end function
+
+    !> @public
+    !> @brief       calculate a hashcode for the list
+    !> @details     this function takes all elements within the map into account. The calculated
+    !>              hashcode is the sum of all hashcodes from stored values and keys
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    integer (kind=8) function map_hashcode(this) result (res)
+        class(map) :: this
+
+        ! local variables
+        class(node), pointer :: currentnode
+        integer :: i
+
+        ! the hashcode of the word "map" and the capacity
+        res = calculateHash("map") * this%initialSize
+
+        ! loop over the underlying table
+        do i = 1, this%initialSize
+            ! are there elements stored in this cell?
+            if (this%table(i)%length > 0) then
+                currentnode => this%table(i)%thenode
+                do
+                    res = res + (currentnode%hash + calculateHash(currentnode%value)) * i
+                    if (.not. associated(currentnode%next)) then
+                        exit
+                    else
+                        currentnode => currentnode%next
+                    end if
+                end do
+            else
+                res = res + i
+            end if
+        end do
     end function
 
     !> @public
