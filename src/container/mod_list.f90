@@ -91,14 +91,14 @@ contains
         class(*), pointer :: value
 
         ! it es a list and has a number of elements
-        res = "List, number of elements: " // number_to_string(this%length()) // char(10)
-
+        res = "List, number of elements: " // number_to_string(this%nelements) // char(10)
+        
         ! loop over all elements
         if (this%length() > 0) then
             res = res // char(10)
             iter = this%get_iterator()
             i = 1
-            write (iformat, "(A,I1,A)") "(I", ndigits_of_integer(this%length()), ")"
+            write (iformat, "(A,I1,A)") "(I", ndigits_of_integer(this%nelements), ")"
             do while (iter%hasnext())
                 value => iter%next()
                 res = res // "    " // number_to_string(i, iformat) // ") " // type_to_string(value) // char(10)
