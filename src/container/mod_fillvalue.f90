@@ -2,12 +2,12 @@ module mod_fillvalue
     implicit none
     ! default fill values, the same as used by netcdf
 
-    integer           fstd_fill_byte
-    integer           fstd_fill_char
-    integer           fstd_fill_int
-    integer(kind=8)   fstd_fill_intk8
-    real              fstd_fill_real
-    real(kind=8)      fstd_fill_realk8
+    integer           :: fstd_fill_byte
+    integer           :: fstd_fill_char
+    integer           :: fstd_fill_int
+    integer(kind=8)   :: fstd_fill_intk8
+    real              :: fstd_fill_real
+    real(kind=8)      :: fstd_fill_realk8
 
     parameter (fstd_fill_byte = -127)
     parameter (fstd_fill_char = 0)

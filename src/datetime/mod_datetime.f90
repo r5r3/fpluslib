@@ -4,6 +4,7 @@ module mod_datetime
     use f_udunits_2
     use mod_hashcode
     use mod_fstd
+    use mod_fillvalue
     implicit none
     private
 
@@ -19,6 +20,12 @@ module mod_datetime
         procedure, public :: to_string => datetime_to_string
         !> @brief   add time of a given unit
         procedure, public :: add => datetime_add
+        !> @brief   set single parts of the date
+        procedure, public :: set => datetime_set
+        !> @brief   set single parts of the date
+        procedure, public :: get => datetime_get
+        !> @brief   set one single part of the date
+        procedure, public :: get_field => datetime_get_field
     end type
 
     ! make the constructor public
@@ -38,6 +45,14 @@ module mod_datetime
     ! this varrable is set to true afert initialization
     logical :: isInitialized = .false.
     
+    !> @brief   Constants for the usage in get_field
+    integer, parameter, public :: DT_YEAR   = 1
+    integer, parameter, public :: DT_MONTH  = 2
+    integer, parameter, public :: DT_DAY    = 3
+    integer, parameter, public :: DT_HOUR   = 4
+    integer, parameter, public :: DT_MINUTE = 5
+    integer, parameter, public :: DT_SECOND = 6
+
 
 ! the contents of the module follows
 contains
@@ -49,7 +64,7 @@ contains
     !>              datetime objects
     !> @details     If any of the optional arguments is given, then the new datetime object
     !>              will represent the date and time specified by the arguments. Missing
-    !>              arguments are set to zero (year, month, and day to 1).
+    !>              arguments are set to zero (year to 1970, month and day to 1).
     !>              If no argument is present, then the new datetime object will
     !>              represent the time of creation.
     !> @param[in]   year    the year of the new date, optional
@@ -76,7 +91,7 @@ contains
             if (present(year)) then
                 now(1) = year
             else
-                now(1) = 1
+                now(1) = 1970
             end if
             if (present(month)) then
                 now(2) = month
@@ -213,6 +228,136 @@ contains
         end if
 
     end subroutine
+
+    !> @public
+    !> @brief       set single parts of the date
+    !> @param[in]   this    reference to the datetime object, automatically set by fortran
+    !> @param[in]   year    set the years, optional
+    !> @param[in]   month   set the months, optional
+    !> @param[in]   day     set the days, optional
+    !> @param[in]   hour    set the hours, optional
+    !> @param[in]   minute  set the minutes, optional
+    !> @param[in]   seconds set the seconds, optional
+    subroutine datetime_set(this, year, month, day, hour, minute, second)
+        class(datetime) :: this
+        integer, optional :: year, month, day, hour, minute
+        real (kind=8), optional :: second
+
+        ! local variables
+        integer :: iyear, imonth, iday, ihour, iminute
+        real (kind=8) :: isecond
+
+        ! calculate the currently stored date
+        call get_date_from_seconds_since_1970(this%time_in_sec1970,iyear,imonth,iday,ihour,iminute,isecond)
+
+        ! set a year if present
+        if (present(year)) then
+            iyear = year
+        end if
+        ! set a month if present
+        if (present(month)) then
+            imonth = month
+        end if
+        ! add a day if present
+        if (present(day)) then
+            iday = day
+        end if
+        ! add a hour if present
+        if (present(hour)) then
+            ihour = hour
+        end if
+        ! add a minute if present
+        if (present(minute)) then
+            iminute = minute
+        end if
+        ! add a second if present
+        if (present(second)) then
+            isecond = second
+        end if
+
+        ! convert back to seconds since 1970
+        this%time_in_sec1970 = get_seconds_since_1970(iyear,imonth,iday,ihour,iminute,isecond)
+    end subroutine
+
+
+    !> @public
+    !> @brief       get single parts of the date
+    !> @param[in]   this    reference to the datetime object, automatically set by fortran
+    !> @param[out]  year    get the years, optional
+    !> @param[out]  month   get the months, optional
+    !> @param[out]  day     get the days, optional
+    !> @param[out]  hour    get the hours, optional
+    !> @param[out]  minute  get the minutes, optional
+    !> @param[out]  seconds get the seconds, optional
+    subroutine datetime_get(this, year, month, day, hour, minute, second)
+        class(datetime) :: this
+        integer, intent(out), optional :: year, month, day, hour, minute
+        real (kind=8), intent(out), optional :: second
+
+        ! local variables
+        integer :: iyear, imonth, iday, ihour, iminute
+        real (kind=8) :: isecond
+
+        ! calculate the currently stored date
+        call get_date_from_seconds_since_1970(this%time_in_sec1970,iyear,imonth,iday,ihour,iminute,isecond)
+
+        ! set a year if present
+        if (present(year)) then
+            year = iyear
+        end if
+        ! set a month if present
+        if (present(month)) then
+            month = imonth
+        end if
+        ! add a day if present
+        if (present(day)) then
+            day = iday
+        end if
+        ! add a hour if present
+        if (present(hour)) then
+            hour = ihour
+        end if
+        ! add a minute if present
+        if (present(minute)) then
+            minute = iminute
+        end if
+        ! add a second if present
+        if (present(second)) then
+            second = isecond
+        end if
+    end subroutine
+
+    !> @public
+    !> @brief       set one single part of the date
+    !> @param[in]   this    reference to the datetime object, automatically set by fortran
+    !> @param[in]   field   the part of interest, valid values are DT_YEAR, DT_MONTH, DT_DAY, DT_HOUR, DT_MINUTE, DT_SECOND
+    integer function datetime_get_field(this, field) result(res)
+        class(datetime) :: this
+        integer, intent(in) :: field
+        ! local variables
+        integer :: iyear, imonth, iday, ihour, iminute
+        real (kind=8) :: isecond
+
+        ! calculate the currently stored date
+        call get_date_from_seconds_since_1970(this%time_in_sec1970,iyear,imonth,iday,ihour,iminute,isecond)
+        select case (field)
+            case (DT_YEAR)
+                res = iyear
+            case (DT_MONTH)
+                res = imonth
+            case (DT_DAY)
+                res = iday
+            case (DT_HOUR)
+                res = ihour
+            case (DT_MINUTE)
+                res = iminute
+            case (DT_SECOND)
+                res = int(isecond)
+            case default
+                res = fstd_fill_int
+        end select
+    end function
+
 
     ! procedure that don't belong to a type -----------------------------------
 

@@ -6,7 +6,7 @@ program test_datetime
     type(datetime) :: now
     type(map) :: dates
     character(len=:), allocatable :: text
-    integer :: i
+    integer :: i, test1, test2
     
     now = new_datetime()
 
@@ -55,6 +55,19 @@ program test_datetime
     print*, "Date and time: ", now%to_string()
     print*, "hashcode:      ", now%hashcode()
     call dates%add(now, 6, .true.)
+    print*, ""
+
+    ! change some parts of the date
+    call now%set(year=2013, month=5)
+    print*, "Set year to 2013 and month to 5"
+    print*, "Date and time: ", now%to_string()
+    print*, "hashcode:      ", now%hashcode()
+    call dates%add(now, 7, .true.)
+    print*, ""
+
+    ! get some parts of the date
+    call now%get(month=test1, hour=test2)
+    print*, "Month:", test1, "Hour:", test2, "Year:", now%get_field(DT_YEAR)
     print*, ""
 
     call dates%printContent()
