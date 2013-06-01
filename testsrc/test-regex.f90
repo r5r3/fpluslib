@@ -16,7 +16,8 @@ program test_regex
     print*, "Last error code: ", re%last_error(), " Message: ", re%last_error_msg()
 
     ! match a string
-    matches = re%matches(string)
+    call re%matches(string, matches)
+    print*, allocated(matches)
     print*, "Last error code: ", re%last_error(), " Message: ", re%last_error_msg()
     do i = 1, size(matches)
         print*, "Group:", i, "first:", matches(i)%first, "last:", matches(i)%last, "string: ", trim(matches(i)%string)
@@ -25,7 +26,7 @@ program test_regex
 
     ! create a new case insensitive regex
     re = new_regex(pattern, REG_ICASE=.true.)
-    matches = re%matches(string)
+    call re%matches(string, matches)
     print*, "Last error code: ", re%last_error(), " Message: ", re%last_error_msg()
     do i = 1, size(matches)
         print*, "Group:", i, "first:", matches(i)%first, "last:", matches(i)%last, "string: ", trim(matches(i)%string)

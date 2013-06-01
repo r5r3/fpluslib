@@ -53,6 +53,9 @@ module mod_list
         class(list), pointer, private :: thelist => null()
         class(element), pointer, private :: currentElement => null()
         integer, private :: direction
+        ! workaround for ifort bug. we count the number of time
+        ! that the nextelement function is called. 
+        integer, private :: counter
     contains
         procedure, public :: hasnext => listiterator_hasnext
         procedure, public :: next => listiterator_next
@@ -265,6 +268,7 @@ contains
             list_get_iterator%direction = 0
             list_get_iterator%currentElement => this%firstElement
         end if
+        list_get_iterator%counter = 0
     end function
 
     !> @public
@@ -308,53 +312,58 @@ contains
     ! then the procedures for the iterator ------------------------------------
 
     ! check if we are able to get an additional element
-    function listiterator_hasnext(this)
+    function listiterator_hasnext(this) result (res)
         class(listiterator) :: this
-        logical :: listiterator_hasnext
-        if (associated(this%currentElement)) then
-            listiterator_hasnext = .true.
+        logical :: res
+        ! TODO: why is the counter needed? ifort bug!
+        if (associated(this%currentElement) .and. this%counter < this%thelist%nelements) then
+            res = .true.
         else
-            listiterator_hasnext = .false.
+            res = .false.
         end if
     end function
 
     ! get the next element
-    function listiterator_next(this)
+    function listiterator_next(this) result (res)
         class(listiterator) :: this
-        class(*), pointer :: listiterator_next
-        class(element), pointer :: nextelement
+        class(*), pointer :: res
+        class(element), pointer :: next_list_element
 
         ! assign null to the result
-        listiterator_next => null()
+        res => null()
 
         ! get the next element object
-        nextelement => this%next_element()
+        next_list_element => this%next_element()
 
         ! assign the result
-        if (associated(nextelement)) then
-            listiterator_next => nextelement%value
+        if (associated(next_list_element)) then
+            res => next_list_element%value
         end if
     end function
 
     ! get the next element
-    function listiterator_nextelement(this)
+    function listiterator_nextelement(this) result(res)
         class(listiterator) :: this
-        class(element), pointer :: listiterator_nextelement
+        class(element), pointer :: res
+        logical :: test
 
         ! assign null to the result
-        listiterator_nextelement => null()
+        res => null()
 
-        if (this%hasnext()) then
-            listiterator_nextelement => this%currentElement
+        if (associated(this%currentElement)) then
+            res => this%currentElement
             ! go to the next element
             if (this%direction == 0 .and. associated(this%currentElement%nextElement)) then
                 this%currentElement => this%currentElement%nextElement
             else if (this%direction == 1 .and. associated(this%currentElement%prevElement)) then
                 this%currentElement => this%currentElement%prevElement
             else
-                this%currentElement => null()
+                nullify(this%currentElement)
             end if
         end if
+        
+        ! count this element
+        this%counter = this%counter + 1
     end function
 
     ! then the procedures for the elements ------------------------------------

@@ -170,11 +170,13 @@ contains
     !> @public
     !> @brief       returns an array of match objects
     !> @param[in]   this    reference to the regex object, automatically set by fortran
-    !> @return      an array of type match and dimension number of matches.
-    function regex_matches(this, string) result (res)
+    !> @param[out]  res     an array of type match and dimension number of matches.
+    !> @todo        this subroutine should be a function, but there are problems with the 
+    !>              ifort compiler. The returned array is not allocated.
+    subroutine regex_matches(this, string, res)
         class(regex) :: this
         character (len=*) :: string
-        type(match), dimension(:), allocatable :: res
+        type(match), dimension(:), intent(out), allocatable :: res
 
         ! local variables
         integer(kind=C_size_t) :: str_size, i, nmatch
@@ -200,7 +202,7 @@ contains
         ! clean up beginnings and endings
         deallocate(beginnings)
         deallocate(endings)
-    end function
+    end subroutine
 
     !> @public
     !> @brief       release all internaly used memory
