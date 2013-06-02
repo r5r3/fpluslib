@@ -106,6 +106,12 @@ contains
         res = "Map, number of elements: " // number_to_string(this%nelements) // &
               ", capacity: " // number_to_string(this%capacity) // char(10) // char(10)
 
+        ! are there any elements in the map?
+        if (this%nelements == 0) then
+            res = res // "The map is completely empty!"
+            return
+        end if
+
         ! format for the cell number
         ndigits = ndigits_of_integer(this%capacity)
         write (iformat, "(A,I1,A)") "(I", ndigits, ")"
@@ -354,6 +360,8 @@ contains
         ! remove the table itself
         deallocate (this%table)
         this%nelements = 0
+        ! reset the capacity to the initial capacity
+        this%capacity = this%initialSize
     end subroutine
 
     !> @public
@@ -445,6 +453,10 @@ contains
                     ! correct the number of elements
                     this%table(pos)%length = this%table(pos)%length -1
                     this%nelements = this%nelements -1
+                    ! resize the underlying table if needed
+                    if (this%nelements < this%capacity * 0.01) then
+                        call this%resize(int(this%capacity * 0.01))
+                    end if
                     ! leave the loop
                     exit
                 end if
@@ -479,21 +491,25 @@ contains
         class(nodepointer), dimension(:), pointer :: oldtable
         class(nodepointer), dimension(:), pointer :: temp_nodes
         class(node), pointer :: currentnode
-        integer :: i, j, oldcapacity
-
-        ! is the new size different from the current size?
-        if (newsize == this%capacity) return
+        integer :: i, j, oldcapacity, newsize_intern
 
         ! is the new size smaller then the initial size?
-        if (newsize < this%initialSize) return
+        if (newsize < this%initialSize) then
+            newsize_intern = this%initialSize
+        else
+            newsize_intern = newsize
+        end if
+
+        ! is the new size different from the current size?
+        if (newsize_intern == this%capacity) return
 
         ! move the old table to the old table pointer and replace it with
         ! a new allocated table of the new size
         oldtable => this%table
         nullify(this%table)
-        allocate(this%table(newsize))
+        allocate(this%table(newsize_intern))
         oldcapacity = this%capacity
-        this%capacity = newsize
+        this%capacity = newsize_intern
         this%nelements = 0
 
         ! transfer the content of the old table to the new table
@@ -524,7 +540,6 @@ contains
                 call this%add_node(currentnode)
             end if
         end do
-
     end subroutine
 
     ! procedures of the node --------------------------------------------------

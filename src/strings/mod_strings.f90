@@ -90,6 +90,12 @@ contains
                 res = number_to_string(val)
             type is (character (len=*))
                 res = val
+            type is (logical)
+                if (val .eqv. .true.) then
+                    res = "T"
+                else
+                    res = "F"
+                end if
             class is (object)
                 res = val%to_string()
             class default

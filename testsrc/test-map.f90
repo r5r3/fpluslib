@@ -74,6 +74,7 @@ program test_map
     ! clean up
     call testmap%clear()
     call testmap%printContent()
+    print*, testmap%to_string()
 
 
 end program test_map

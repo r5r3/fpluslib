@@ -3,6 +3,7 @@
 !> @todo    Implement to_string and hashcode methods.
 module mod_regex
     use, intrinsic :: ISO_C_BINDING
+    use mod_strings
     implicit none
     private
 
@@ -62,7 +63,10 @@ module mod_regex
     type, public :: regex
         type(C_ptr), private :: prog
         logical, private :: initialized = .false.
-        integer (kind=C_int) :: error = 0
+        integer (kind=C_int), private :: error = 0
+        !> @todo    The pattern is stored in this variable, replace by character (len=:) as soon as supported
+        character (len=1000), private :: pattern
+        logical :: flag_REG_EXTENDED, flag_REG_ICASE, flag_REG_NOSUB, flag_REG_NEWLINE
     contains
         !> @brief   Returns .true. if this object contains a vaild regex program
         procedure, public :: is_valid => regex_is_valid
@@ -74,6 +78,8 @@ module mod_regex
         procedure, public :: matches => regex_matches
         !> @brief   release all internaly used memory
         procedure, public :: release => regex_release
+        !> @brief   Returns a string  representation of this object
+        procedure, public :: to_string => regex_to_string
     end type
 
     !> @brief   The return type of regex%match
@@ -110,10 +116,30 @@ contains
 
         ! calculate the flag from the given arguments
         flags = 0
-        if (.not. present(REG_EXTENDED) .or. REG_EXTENDED .eqv. .true.) flags = ior(flags, C_regex_get_REG_EXTENDED())
-        if (present(REG_ICASE)    .and. REG_ICASE    .eqv. .true.) flags = ior(flags, C_regex_get_REG_ICASE())
-        if (present(REG_NOSUB)    .and. REG_NOSUB    .eqv. .true.) flags = ior(flags, C_regex_get_REG_NOSUB())
-        if (present(REG_NEWLINE)  .and. REG_NEWLINE  .eqv. .true.) flags = ior(flags, C_regex_get_REG_NEWLINE())
+        if (.not. present(REG_EXTENDED) .or. REG_EXTENDED .eqv. .true.) then
+            flags = ior(flags, C_regex_get_REG_EXTENDED())
+            res%flag_REG_EXTENDED = .true.
+        else
+            res%flag_REG_EXTENDED = .false.
+        end if
+        if (present(REG_ICASE)    .and. REG_ICASE    .eqv. .true.) then
+            flags = ior(flags, C_regex_get_REG_ICASE())
+            res%flag_REG_ICASE = .true.
+        else
+            res%flag_REG_ICASE = .false.
+        end if
+        if (present(REG_NOSUB)    .and. REG_NOSUB    .eqv. .true.) then
+            flags = ior(flags, C_regex_get_REG_NOSUB())
+            res%flag_REG_NOSUB = .true.
+        else
+            res%flag_REG_NOSUB = .false.
+        end if
+        if (present(REG_NEWLINE)  .and. REG_NEWLINE  .eqv. .true.) then
+            flags = ior(flags, C_regex_get_REG_NEWLINE())
+            res%flag_REG_NEWLINE = .true.
+        else
+            res%flag_REG_NEWLINE = .false.
+        end if
 
         ! allocate the c-pointer to the regex_t struct
         call C_reg_alloc(res%prog)
@@ -123,6 +149,23 @@ contains
 
         ! mark the object as initialized
         res%initialized = .true.
+
+        ! store the pattern
+        res%pattern = pattern
+    end function
+
+    !> @public
+    !> @brief       Returns a string  representation of this object
+    !> @param[in]   this    reference to the regex object, automatically set by fortran
+    function regex_to_string(this) result (res)
+        class(regex) :: this
+        character (len=:), allocatable :: res
+        res = "Regex, pattern: " // trim(this%pattern) // char(10) // char(10)
+        res = res // " Flags: " // char(10)
+        res = res // "    => REG_EXTENDED = " // type_to_string(this%flag_REG_EXTENDED) // char(10)
+        res = res // "    => REG_ICASE    = " // type_to_string(this%flag_REG_ICASE) // char(10)
+        res = res // "    => REG_NOSUB    = " // type_to_string(this%flag_REG_NOSUB) // char(10)
+        res = res // "    => REG_NEWLINE  = " // type_to_string(this%flag_REG_NEWLINE) // char(10)
     end function
 
     !> @public
