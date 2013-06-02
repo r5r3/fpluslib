@@ -1,4 +1,6 @@
 !> @brief   An interface to the POSIX regex library
+!> @author  Robert Schuster
+!> @todo    Implement to_string and hashcode methods.
 module mod_regex
     use, intrinsic :: ISO_C_BINDING
     implicit none

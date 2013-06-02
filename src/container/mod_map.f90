@@ -20,7 +20,7 @@ module mod_map
         integer (kind=8) :: hash
         ! is the value a copy? the key is always a copy
         logical :: valueIsCopy
-        contains
+    contains
         procedure release                   ! deallocate the memory of this node and all children
     end type
 
@@ -36,11 +36,17 @@ module mod_map
     !> @brief   The hash map type
     type, extends(object), public :: map
         class(nodepointer), dimension(:), pointer, private :: table => null()
+        ! number of elements currently stored in the map
         integer, private :: nelements
+        ! the initial size of the underlying array
         integer, private :: initialSize
+        ! @brief    current capacity of the map underlying array
+        integer, private :: capacity
     contains
         !> @brief   Associates the specified value with the specified key in this map.
         procedure, public :: add => map_add
+        !> @brief   Add an existing node to the table, internally used
+        procedure, private :: add_node => map_add_node
         !> @brief   Calculate the index of the hash key in the table
         procedure, private :: positionForHash
         !> @brief   Print the table structure for debuging
@@ -57,6 +63,8 @@ module mod_map
         procedure, public :: to_string => map_to_string
         !> @brief   Calculate the hashcode of the table
         procedure, public :: hashcode => map_hashcode
+        !> @brief   Change the size of the underlying array, automatically called
+        procedure, public :: resize => map_resize
     end type
     ! make the constructor for the map public
     public :: new_map
@@ -76,8 +84,9 @@ contains
         if (present(isize)) then
             new_map%initialSize = isize
         else
-            new_map%initialSize = 10000
+            new_map%initialSize = 100
         end if
+        new_map%capacity = new_map%initialSize
         new_map%nelements = 0
     end function
 
@@ -95,14 +104,14 @@ contains
 
         ! it es a map and has a number of elements
         res = "Map, number of elements: " // number_to_string(this%nelements) // &
-              ", capacity: " // number_to_string(this%initialSize) // char(10) // char(10)
+              ", capacity: " // number_to_string(this%capacity) // char(10) // char(10)
 
         ! format for the cell number
-        ndigits = ndigits_of_integer(this%initialSize)
+        ndigits = ndigits_of_integer(this%capacity)
         write (iformat, "(A,I1,A)") "(I", ndigits, ")"
 
         ! loop over the underlying table
-        do i = 1, this%initialSize
+        do i = 1, this%capacity
             res = res // "    Cell " // number_to_string(i, iformat) // ") "
             ! are there elements stored in this cell?
             if (this%table(i)%length > 0) then
@@ -148,10 +157,10 @@ contains
         integer :: i
 
         ! the hashcode of the word "map" and the capacity
-        res = calculateHash("map") * this%initialSize
+        res = calculateHash("map") * this%capacity
 
         ! loop over the underlying table
-        do i = 1, this%initialSize
+        do i = 1, this%capacity
             ! are there elements stored in this cell?
             if (this%table(i)%length > 0) then
                 currentnode => this%table(i)%thenode
@@ -186,9 +195,8 @@ contains
         logical :: copyValue
 
         ! local variables
-        integer :: pos = 0
-        class(node), pointer :: newnode, currentnode, lastnode
-        logical :: found
+        integer :: pos
+        class(node), pointer :: newnode
 
         ! copy or link?
         if (present(copy)) then
@@ -199,8 +207,8 @@ contains
 
         ! create the root if not already present
         if (.not.associated(this%table)) then
-            allocate(this%table(this%initialSize))
-            do pos = 1, this%initialSize
+            allocate(this%table(this%capacity))
+            do pos = 1, this%capacity
                 this%table(pos)%thenode => null()
                 this%table(pos)%length = 0
             end do
@@ -208,6 +216,28 @@ contains
 
         ! create a new node
         newnode => new_node(key, value, copyValue)
+
+        ! add the node to the map
+        call this%add_node(newnode)
+
+        ! resize the table if it is filled to more then 200% percent
+        if (this%nelements > this%capacity*2) then
+            call this%resize(this%capacity*10)
+        end if
+    end subroutine
+
+    !> @brief       Add an existing node to the table, internally used
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @param[in]   newnode the node that should be added to the map
+    subroutine map_add_node(this, newnode)
+        class(map) :: this
+        class(node), pointer :: newnode
+
+        ! local variables
+        integer :: pos = 0
+        class(node), pointer :: currentnode, lastnode
+        logical :: found
+
 
         ! calculate the position in the table
         pos = this%positionForHash(newnode%hash)
@@ -258,8 +288,8 @@ contains
                 this%nelements = this%nelements + 1
             end if
         end if
-
     end subroutine
+
 
     ! calculate the index within the hash table for a given hash code
     function positionForHash(this, hash)
@@ -267,7 +297,7 @@ contains
         integer (kind=8), intent(in) :: hash
         integer :: positionForHash
         ! calculate the modulo of the hash code
-        positionForHash = modulo(hash, this%initialSize) + 1
+        positionForHash = modulo(hash, this%capacity) + 1
     end function
 
     !> @public
@@ -285,7 +315,7 @@ contains
             ! print the number of elements in the map
             write (*, "(A,I8)") "Elements in the map:", this%nelements
             ! loop over all table cells
-            do i = 1, this%initialSize
+            do i = 1, this%capacity
                 if (associated(this%table(i)%thenode)) then
                     currentnode => this%table(i)%thenode
                     write (*, "(A,I8,A,I20,A)") "cell:", i, " => node(", currentnode%hash, ")"
@@ -313,7 +343,7 @@ contains
         class(map) :: this
         integer :: i
         ! loop over the complete table
-        do i = 1, this%initialSize
+        do i = 1, this%capacity
             ! is here an element?
             if (associated(this%table(i)%thenode)) then
                 call this%table(i)%thenode%release()
@@ -427,12 +457,75 @@ contains
     end subroutine
 
     !> @public
-    !> @brief   Returns the number of elements in this list
-    !> @return  number of elements
+    !> @brief       Returns the number of elements in this list
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @return      number of elements
     integer function map_length(this)
         class(map) :: this
         map_length = this%nelements
     end function
+
+    !> @public
+    !> @brief       Change the size of the underlying array, automatically called
+    !> @detail      a new array is allocated and the content of the old table is transfered to the
+    !>              new table.
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @param[in]   newsize the new size of the underlying table
+    subroutine map_resize(this, newsize)
+        class(map) :: this
+        integer, intent(in) :: newsize
+
+        ! local variables
+        class(nodepointer), dimension(:), pointer :: oldtable
+        class(nodepointer), dimension(:), pointer :: temp_nodes
+        class(node), pointer :: currentnode
+        integer :: i, j, oldcapacity
+
+        ! is the new size different from the current size?
+        if (newsize == this%capacity) return
+
+        ! is the new size smaller then the initial size?
+        if (newsize < this%initialSize) return
+
+        ! move the old table to the old table pointer and replace it with
+        ! a new allocated table of the new size
+        oldtable => this%table
+        nullify(this%table)
+        allocate(this%table(newsize))
+        oldcapacity = this%capacity
+        this%capacity = newsize
+        this%nelements = 0
+
+        ! transfer the content of the old table to the new table
+        ! loop over the old table
+        do i= 1, oldcapacity
+            ! copy all nodes from a table cell to an temporal array
+            if (oldtable(i)%length > 1) then
+                ! create the temporal array
+                allocate(temp_nodes(oldtable(i)%length))
+                ! move the nodes into the temporal array
+                currentnode => oldtable(i)%thenode
+                do j = 1, oldtable(i)%length
+                    temp_nodes(j)%thenode => currentnode
+                    currentnode => currentnode%next
+                end do
+                ! add the node to the new map table
+                do j = 1, oldtable(i)%length
+                    nullify(temp_nodes(j)%thenode%next)
+                    call this%add_node(temp_nodes(j)%thenode)
+                    nullify(temp_nodes(j)%thenode)
+                end do
+                ! deallocate the temporal array
+                deallocate(temp_nodes)
+            ! we only have one node, move it directly
+            else if (oldtable(i)%length == 1) then
+                currentnode => oldtable(i)%thenode
+                nullify(oldtable(i)%thenode)
+                call this%add_node(currentnode)
+            end if
+        end do
+
+    end subroutine
 
     ! procedures of the node --------------------------------------------------
 
