@@ -243,10 +243,10 @@ contains
     !> @param[out]  res     an array of type match and dimension number of matches.
     !> @todo        this subroutine should be a function, but there are problems with the 
     !>              ifort compiler. The returned array is not allocated.
-    subroutine regex_matches(this, string, res)
+    function regex_matches(this, string) result(res)
         class(regex) :: this
         character (len=*) :: string
-        type(match), dimension(:), intent(out), allocatable :: res
+        type(match), dimension(:), allocatable :: res
 
         ! local variables
         integer(kind=C_size_t) :: str_size, i, nmatch
@@ -272,7 +272,7 @@ contains
         ! clean up beginnings and endings
         deallocate(beginnings)
         deallocate(endings)
-    end subroutine
+    end function 
 
     !> @public
     !> @brief       release all internaly used memory

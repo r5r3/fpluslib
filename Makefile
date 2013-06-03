@@ -15,7 +15,7 @@ endif
 FC=$(shell scripts/select_compiler.py --compilers intel pgf gnu-mp-4.8 --fc)
 CC=$(shell scripts/select_compiler.py --compilers intel pgf gnu-mp-4.8 --cc)
 ifeq ($(FC),ifort)
-	FCFLAGS=-module include -fpic
+	FCFLAGS=-module include -fpic -assume realloc_lhs
 	CCFLAGS=-fpic $(EXTINC)
 	DYLIBFLAGS=-shared $(EXTLIB)
 	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd $(EXTLIB)
