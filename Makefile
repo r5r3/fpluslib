@@ -37,7 +37,7 @@ endif
 SRCOBJ=$(shell scripts/module_build_order.py --src src --obj build)
 
 # compile everything
-all: bin include lib build lib/libfstd.$(DYLIBEXT)
+all: bin include lib build lib/libfstd.$(DYLIBEXT) lib/libfstd.a
 
 # create folders
 bin:
@@ -55,6 +55,10 @@ lib:
 # build the dynamic library file
 lib/libfstd.$(DYLIBEXT): lib $(SRCOBJ)
 	$(FC) $(DYLIBFLAGS) -o $@ $(SRCOBJ)
+
+# build the static library file
+lib/libfstd.a: lib $(SRCOBJ)
+	ar rc $@ $(SRCOBJ)
 
 # create the documentation with doxygen
 doc/html: src/* src/*/* testsrc/* doc/Doxyfile
