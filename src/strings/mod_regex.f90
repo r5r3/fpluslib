@@ -1,9 +1,10 @@
 !> @brief   An interface to the POSIX regex library
 !> @author  Robert Schuster
-!> @todo    Implement to_string and hashcode methods.
 module mod_regex
     use, intrinsic :: ISO_C_BINDING
     use mod_strings
+    use mod_fstd
+    use mod_hashcode
     implicit none
     private
 
@@ -60,7 +61,7 @@ module mod_regex
     end interface
 
     !> @brief   The compiled regular expression program
-    type, public :: regex
+    type, extends(object), public :: regex
         type(C_ptr), private :: prog
         logical, private :: initialized = .false.
         integer (kind=C_int), private :: error = 0
@@ -80,6 +81,8 @@ module mod_regex
         procedure, public :: release => regex_release
         !> @brief   Returns a string  representation of this object
         procedure, public :: to_string => regex_to_string
+        !> @brief   Calculate the hash code for this object
+        procedure, public :: hashcode => regex_hashcode
     end type
 
     !> @brief   The return type of regex%match
@@ -166,6 +169,28 @@ contains
         res = res // "    => REG_ICASE    = " // type_to_string(this%flag_REG_ICASE) // char(10)
         res = res // "    => REG_NOSUB    = " // type_to_string(this%flag_REG_NOSUB) // char(10)
         res = res // "    => REG_NEWLINE  = " // type_to_string(this%flag_REG_NEWLINE) // char(10)
+    end function
+
+    !> @public
+    !> @brief       Calculate the hash code for this object
+    !> @param[in]   this    reference to the regex object, automatically set by fortran
+    function regex_hashcode(this) result(res)
+        class(regex) :: this
+        integer (kind=8) :: res
+
+        ! local variables
+        character (len=:), allocatable :: str
+        integer (kind=1), dimension(:), allocatable :: chars
+        integer :: l
+
+        str = "Regex" // type_to_string(this%flag_REG_EXTENDED) // type_to_string(this%flag_REG_ICASE) // &
+                         type_to_string(this%flag_REG_NOSUB) // type_to_string(this%flag_REG_NEWLINE) // &
+                         trim(this%pattern)
+
+        l = len(str)
+        allocate(chars(l))
+        chars = transfer(str, chars)
+        call C_sdbm(chars, l, res)
     end function
 
     !> @public

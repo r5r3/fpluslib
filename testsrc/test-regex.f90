@@ -13,6 +13,7 @@ program test_regex
     print*, "Pattern: ", pattern, " String: ", string
     re = new_regex(pattern)
     print*, re%to_string()
+    print*, "Hashcode: ", re%hashcode()
     print*, "The program is valid: ", re%is_valid()
     print*, "Last error code: ", re%last_error(), " Message: ", re%last_error_msg()
 
@@ -28,6 +29,7 @@ program test_regex
     ! create a new case insensitive regex
     re = new_regex(pattern, REG_ICASE=.true.)
     print*, re%to_string()
+    print*, "Hashcode: ", re%hashcode()
     call re%matches(string, matches)
     print*, "Last error code: ", re%last_error(), " Message: ", re%last_error_msg()
     do i = 1, size(matches)
