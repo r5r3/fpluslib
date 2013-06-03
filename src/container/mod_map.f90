@@ -489,8 +489,7 @@ contains
 
         ! local variables
         class(nodepointer), dimension(:), pointer :: oldtable
-        class(nodepointer), dimension(:), pointer :: temp_nodes
-        class(node), pointer :: currentnode
+        class(node), pointer :: currentnode, nextnode
         integer :: i, j, oldcapacity, newsize_intern
 
         ! is the new size smaller then the initial size?
@@ -515,24 +514,15 @@ contains
         ! transfer the content of the old table to the new table
         ! loop over the old table
         do i= 1, oldcapacity
-            ! copy all nodes from a table cell to an temporal array
+            ! move all nodes from a table cell to the new table
             if (oldtable(i)%length > 1) then
-                ! create the temporal array
-                allocate(temp_nodes(oldtable(i)%length))
-                ! move the nodes into the temporal array
                 currentnode => oldtable(i)%thenode
                 do j = 1, oldtable(i)%length
-                    temp_nodes(j)%thenode => currentnode
-                    currentnode => currentnode%next
+                    nextnode => currentnode%next
+                    currentnode%next => null()
+                    call this%add_node(currentnode)
+                    currentnode => nextnode
                 end do
-                ! add the node to the new map table
-                do j = 1, oldtable(i)%length
-                    nullify(temp_nodes(j)%thenode%next)
-                    call this%add_node(temp_nodes(j)%thenode)
-                    nullify(temp_nodes(j)%thenode)
-                end do
-                ! deallocate the temporal array
-                deallocate(temp_nodes)
             ! we only have one node, move it directly
             else if (oldtable(i)%length == 1) then
                 currentnode => oldtable(i)%thenode
