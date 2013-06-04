@@ -1,5 +1,5 @@
 !> @brief This module contains type and interface definition for iterators.
-module mod_iterator
+module fplus_iterator
     implicit none
     public
 
@@ -23,4 +23,4 @@ module mod_iterator
         end function
     end interface
 
-end module mod_iterator
+end module fplus_iterator

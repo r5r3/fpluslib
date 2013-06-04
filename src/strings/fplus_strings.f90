@@ -1,6 +1,6 @@
 !> @brief   Functions and types for string manipulation
-module mod_strings
-    use mod_fstd
+module fplus_strings
+    use fplus_object
     implicit none
 
 contains
@@ -102,4 +102,4 @@ contains
                 res = "unknown type in type_to_string"
         end select
     end function
-end module mod_strings
+end module fplus_strings

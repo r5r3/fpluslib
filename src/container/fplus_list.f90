@@ -1,10 +1,10 @@
 !> @brief   An implementation of a double-linked list
 !> @author  Robert Schuster
-module mod_list
-    use mod_iterator
-    use mod_fstd
-    use mod_strings
-    use mod_hashcode
+module fplus_list
+    use fplus_iterator
+    use fplus_object
+    use fplus_strings
+    use fplus_hashcode
     implicit none
     private
 
@@ -390,4 +390,4 @@ contains
         end if
     end function
 
-end module mod_list
+end module fplus_list

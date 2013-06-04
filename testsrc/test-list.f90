@@ -1,5 +1,5 @@
 program test_list
-    use mod_container
+    use fplus_container
     implicit none
     ! a variable for a new list
     type(list) :: testlist

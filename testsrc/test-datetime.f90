@@ -1,6 +1,6 @@
 program test_datetime
-    use mod_datetime
-    use mod_map
+    use fplus_datetime
+    use fplus_map
     implicit none
 
     type(datetime) :: now

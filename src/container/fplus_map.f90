@@ -1,10 +1,10 @@
 !> @brief   A simple hash table implementation
 !> @author  Robert Schuster
-module mod_map
+module fplus_map
     use, intrinsic :: ISO_C_Binding
-    use mod_strings
-    use mod_hashcode
-    use mod_fstd
+    use fplus_strings
+    use fplus_hashcode
+    use fplus_object
     implicit none
     private
 
@@ -578,4 +578,4 @@ contains
         end if
     end subroutine
 
-end module mod_map
+end module fplus_map

@@ -1,5 +1,5 @@
 program test_map
-    use mod_container
+    use fplus_container
     implicit none
 
     ! a variable for the new map

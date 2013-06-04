@@ -1,7 +1,7 @@
 !> @brief   functions to cast different unlimited polymorphic variables to different types.
 !> @author  Robert schuster
-module mod_converter
-    use mod_fillvalue
+module fplus_converter
+    use fplus_fillvalue
     implicit none
     public
 
@@ -14,7 +14,7 @@ contains
             type is (integer)
                 toInteger = value
             class default
-                toInteger = fstd_fill_int
+                toInteger = fplus_fill_int
         end select
     end function
 
@@ -25,7 +25,7 @@ contains
             type is (real (kind=4))
                 toReal = value
             class default
-                toReal = fstd_fill_real
+                toReal = fplus_fill_real
         end select
     end function
 
@@ -36,7 +36,7 @@ contains
             type is (integer (kind=8))
                 toIntegerK8 = value
             class default
-                toIntegerK8 = fstd_fill_intK8
+                toIntegerK8 = fplus_fill_intK8
         end select
     end function
 
@@ -47,8 +47,8 @@ contains
             type is (real (kind=8))
                 toRealK8 = value
             class default
-                toRealK8 = fstd_fill_realK8
+                toRealK8 = fplus_fill_realK8
         end select
     end function
 
-end module mod_converter
+end module fplus_converter

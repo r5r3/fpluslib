@@ -1,6 +1,6 @@
 ! This Module conatins some basic typs and subroutines used by different
 ! parts of the library
-module mod_fstd
+module fplus_object
     implicit none
     private
 

@@ -1,10 +1,10 @@
 !> @brief   this module contains functions for calculation on dates
 !> @author  Robert Schuster
-module mod_datetime
+module fplus_datetime
     use f_udunits_2
-    use mod_hashcode
-    use mod_fstd
-    use mod_fillvalue
+    use fplus_hashcode
+    use fplus_object
+    use fplus_fillvalue
     implicit none
     private
 
@@ -354,7 +354,7 @@ contains
             case (DT_SECOND)
                 res = int(isecond)
             case default
-                res = fstd_fill_int
+                res = fplus_fill_int
         end select
     end function
 

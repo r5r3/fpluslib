@@ -1,5 +1,5 @@
 program test_regex
-    use mod_regex
+    use fplus_regex
     implicit none
 
     type(regex) :: re

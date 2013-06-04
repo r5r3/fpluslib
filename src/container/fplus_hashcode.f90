@@ -1,6 +1,6 @@
 !> @brief   some function for the calculation of hash codes
-module mod_hashcode
-    use mod_fstd
+module fplus_hashcode
+    use fplus_object
     implicit none
     public
 
@@ -85,4 +85,4 @@ contains
     end function
 
 
-end module mod_hashcode
+end module fplus_hashcode

@@ -1,10 +1,10 @@
 !> @brief   An interface to the POSIX regex library
 !> @author  Robert Schuster
-module mod_regex
+module fplus_regex
     use, intrinsic :: ISO_C_BINDING
-    use mod_strings
-    use mod_fstd
-    use mod_hashcode
+    use fplus_strings
+    use fplus_object
+    use fplus_hashcode
     implicit none
     private
 
