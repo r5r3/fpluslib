@@ -18,26 +18,26 @@ ifeq ($(FC),ifort)
 	FCFLAGS=-module include -fpic -assume realloc_lhs
 	CCFLAGS=-fpic $(EXTINC)
 	DYLIBFLAGS=-shared $(EXTLIB)
-	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd $(EXTLIB)
+	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfplus $(EXTLIB)
 endif
 ifeq ($(FC),pgfortran)
 	FCFLAGS=-module include -fPIC
 	CCFLAGS=-fPIC $(EXTINC)
 	DYLIBFLAGS=-shared $(EXTLIB)
-	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfstd $(EXTLIB)
+	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfplus $(EXTLIB)
 endif
 ifeq ($(FC),gfortran-mp-4.8)
 	FCFLAGS=-Jinclude -fpic -ffree-line-length-none
 	CCFLAGS=-fpic $(EXTINC)
-	DYLIBFLAGS=-shared -install_name $(shell pwd)/lib/libfstd.$(DYLIBEXT) $(EXTLIB)
-	LDFLAGS=-Llib -lfstd $(EXTLIB)
+	DYLIBFLAGS=-shared -install_name $(shell pwd)/lib/libfplus.$(DYLIBEXT) $(EXTLIB)
+	LDFLAGS=-Llib -lfplus $(EXTLIB)
 endif
 
 # create a list of all objects
 SRCOBJ=$(shell scripts/module_build_order.py --src src --obj build)
 
 # compile everything
-all: bin include lib build lib/libfstd.$(DYLIBEXT) lib/libfstd.a
+all: bin include lib build lib/libfplus.$(DYLIBEXT) lib/libfplus.a
 
 # create folders
 bin:
@@ -53,11 +53,11 @@ lib:
 	mkdir -p lib
 
 # build the dynamic library file
-lib/libfstd.$(DYLIBEXT): lib $(SRCOBJ)
+lib/libfplus.$(DYLIBEXT): lib $(SRCOBJ)
 	$(FC) $(DYLIBFLAGS) -o $@ $(SRCOBJ)
 
 # build the static library file
-lib/libfstd.a: lib $(SRCOBJ)
+lib/libfplus.a: lib $(SRCOBJ)
 	ar rc $@ $(SRCOBJ)
 
 # create the documentation with doxygen
@@ -73,16 +73,16 @@ bin/test-up-1: testsrc/test-up-1.f90
 bin/test-up-2: testsrc/test-up-2.f90
 	$(FC) $(FCFLAGS) -o $@ $<
 
-bin/test-list: lib/libfstd.$(DYLIBEXT) build/test-list.o
+bin/test-list: lib/libfplus.$(DYLIBEXT) build/test-list.o
 	$(FC) $(FCFLAGS) -o $@ build/test-list.o $(LDFLAGS)
 
-bin/test-map: lib/libfstd.$(DYLIBEXT) testsrc/test-map.f90
+bin/test-map: lib/libfplus.$(DYLIBEXT) testsrc/test-map.f90
 	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-map.f90
 
-bin/test-datetime: lib/libfstd.$(DYLIBEXT) testsrc/test-datetime.f90
+bin/test-datetime: lib/libfplus.$(DYLIBEXT) testsrc/test-datetime.f90
 	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-datetime.f90
 
-bin/test-regex: lib/libfstd.$(DYLIBEXT) testsrc/test-regex.f90
+bin/test-regex: lib/libfplus.$(DYLIBEXT) testsrc/test-regex.f90
 	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-regex.f90
 
 # rule to compile fortran files

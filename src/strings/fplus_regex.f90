@@ -79,7 +79,7 @@ module fplus_regex
         procedure, public :: matches => regex_matches
         !> @brief   release all internaly used memory
         procedure, public :: release => regex_release
-        !> @brief   Returns a string  representation of this object
+        !> @brief   Returns a string representation of this object
         procedure, public :: to_string => regex_to_string
         !> @brief   Calculate the hash code for this object
         procedure, public :: hashcode => regex_hashcode
