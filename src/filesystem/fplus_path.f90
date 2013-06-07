@@ -3,6 +3,7 @@
 module fplus_path
     use fplus_object
     use fplus_hashcode
+    use, intrinsic :: ISO_C_BINDING
     implicit none
     private
 
@@ -16,6 +17,10 @@ module fplus_path
         procedure, public :: hashcode => path_hashcode
         !> @brief   Tests whether the file or directory denoted by this abstract pathname exists.
         procedure, public :: exists => path_exists
+        !> @brief   Returns the name as c-compatible string
+        procedure, public :: get_cstr_name => path_get_cstr_name
+        !> @brief   Returns the extension of the file, if any.
+        procedure, public :: get_extension => path_get_extension
     end type
 
 
@@ -60,6 +65,34 @@ contains
     logical function path_exists(this) result(res)
         class(path) :: this
         inquire(file=this%name, exist=res)
+    end function
+
+    !> @public
+    !> @brief       Returns the name as c-compatible string
+    function path_get_cstr_name(this) result(res)
+        class(path) :: this
+        character (len=:), allocatable :: res
+        res = trim(this%name) // C_NULL_CHAR
+    end function
+
+    !> @public
+    !> @brief       Returns the extension of the file, if any.
+    function path_get_extension(this) result (res)
+        class(path) :: this
+        character (len=:), allocatable :: res
+
+        !local variables
+        integer :: i1, i2
+
+        ! find the last dot
+        i1 = index(this%name, ".", back=.true.)
+        i2 = index(this%name, "/", back=.true.)
+        if (i1==0 .or. i1 <= i2 .or. i1 == len_trim(this%name)) then
+            res = ""
+        else
+            res = trim(this%name(i1+1:))
+        end if
+
     end function
 
 end module fplus_path

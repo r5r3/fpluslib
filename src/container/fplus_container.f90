@@ -6,6 +6,7 @@ module fplus_container
     use fplus_map
     use fplus_iterator
     use fplus_list
+    use fplus_tuple
     implicit none
     public
 

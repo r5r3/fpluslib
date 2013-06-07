@@ -65,6 +65,8 @@ module fplus_map
         procedure, public :: hashcode => map_hashcode
         !> @brief   Change the size of the underlying array, automatically called
         procedure, public :: resize => map_resize
+        !> @brief   Returns .true. if this map contains a mapping for the specified key.
+        procedure, public :: contains_key => map_contains_key
     end type
     ! make the constructor for the map public
     public :: new_map
@@ -367,18 +369,22 @@ contains
     !> @public
     !> @brief       Returns the value to which the specified key is mapped, or null if this map contains no mapping for the key.
     !> @details     This function looks up the key in the map and returns a pointer to the stored value.
-    !> @param[in]   this    reference to the map object, automatically set by fortran
-    !> @param[in]   key     key with which the searched value is sould be associated
+    !> @param[in]   this            reference to the map object, automatically set by fortran
+    !> @param[in]   key             key with which the searched value is sould be associated
+    !> @param[out]  contains_key    if present, this parameter is se to true, if the key was found in the map. Optional.
     !> @return      a pointer to the value associated to the key or a null-pointer if nothing was found.
-    function map_get(this, key)
+    function map_get(this, key, contains_key)
         class(map) :: this
         class(*), intent(in) :: key
         class(*), pointer :: map_get
+        logical, optional, intent(out) :: contains_key
 
         ! local variables
         integer (kind=8) :: hash
         integer :: pos
         class(node), pointer :: currentnode
+
+        if (present(contains_key)) contains_key = .false.
 
         ! if nothing is found, return a null-pointer
         map_get => null()
@@ -392,6 +398,7 @@ contains
                 ! is the current node the search node
                 if (currentnode%hash == hash) then
                     map_get => currentnode%value
+                    if (present(contains_key)) contains_key = .true.
                     exit
                 end if
                 ! not found? try the next one
@@ -531,6 +538,21 @@ contains
             end if
         end do
     end subroutine
+
+    !> @public
+    !> @brief       Returns true if this map contains a mapping for the specified key.
+    !> @details     This method checks
+    function map_contains_key(this, key) result (res)
+        class(map) :: this
+        class(*) :: key
+        logical :: res
+
+        ! local variables, not used
+        class(*), pointer :: value_for_key
+
+        ! is there a value for this key?
+        value_for_key => this%get(key, contains_key=res)
+    end function
 
     ! procedures of the node --------------------------------------------------
 

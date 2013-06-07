@@ -5,6 +5,7 @@ module fplus_datetime
     use fplus_hashcode
     use fplus_object
     use fplus_fillvalue
+    use fplus_list
     implicit none
     private
 
@@ -29,7 +30,7 @@ module fplus_datetime
     end type
 
     ! make the constructor public
-    public :: new_datetime, get_date_from_seconds_since_1970
+    public :: new_datetime, get_date_from_seconds_since_1970, datetime_list_to_timeaxis
 
     ! pointer to the unit-system of the udunits2 library used for time conversion
     type(UT_SYSTEM_PTR) utsystem
@@ -73,11 +74,14 @@ contains
     !> @param[in]   hour    the hour of the new date, optional
     !> @param[in]   minute  the minute of the new date, optional
     !> @param[in]   seconds the seconds of the new date, optional
+    !> @param[in]   idate   date the the format YYYYMMDD, this format is used by the CDI library, optional
+    !> @param[in]   itime   date the the format HHMMSS, this format is used by the CDI library, optional
+    !> @param[in]   stime   date in seconds since 1970, optional
     !> @return      An initialized new datetime object.
-    function new_datetime(year, month, day, hour, minute, second) result(dt)
+    function new_datetime(year, month, day, hour, minute, second, idate, itime, stime) result(dt)
         type(datetime) :: dt
-        integer, optional :: year, month, day, hour, minute
-        real (kind=8), optional :: second
+        integer, optional :: year, month, day, hour, minute, idate, itime
+        real (kind=8), optional :: second, stime
 
         ! local variables
         real (kind=8) :: isecond
@@ -86,8 +90,14 @@ contains
         ! init the module if needed
         if (.not. isInitialized) call timehelper_init()
 
+        ! is the time in seconds since 1970 given?
+        if (present(stime)) then
+            dt%time_in_sec1970 = stime
+            return
+        end if
+
         ! set the specified time or the current time?
-        if (present(year) .or. present(month) .or. present(day) .or. present(hour) .or. present(minute) .or. present(second)) then
+        if (present(year) .or. present(month) .or. present(day) .or. present(hour) .or. present(minute) .or. present(second) .or. present(idate) .or. present(itime)) then
             if (present(year)) then
                 now(1) = year
             else
@@ -117,6 +127,16 @@ contains
                 isecond = second
             else
                 isecond = 0.0_8
+            end if
+            if (present(idate)) then
+                now(1) = idate / 10000
+                now(2) = (idate - now(1) * 10000) / 100
+                now(3) = idate - now(1) * 10000 - now(2) * 100
+            end if
+            if (present(itime)) then
+                now(5) = itime / 10000
+                now(6) = (itime - now(5) * 10000) / 100
+                isecond = itime - now(5) * 10000 - now(6) * 100
             end if
         else
             ! get the curent date and time
@@ -289,9 +309,11 @@ contains
     !> @param[out]  hour    get the hours, optional
     !> @param[out]  minute  get the minutes, optional
     !> @param[out]  seconds get the seconds, optional
-    subroutine datetime_get(this, year, month, day, hour, minute, second)
+    !> @param[out]  idate   get an integer representation of the date YYYYMMDD, optional
+    !> @param[out]  itime   get an integer representation od the time HHMMSS, optional
+    subroutine datetime_get(this, year, month, day, hour, minute, second, idate, itime)
         class(datetime) :: this
-        integer, intent(out), optional :: year, month, day, hour, minute
+        integer, intent(out), optional :: year, month, day, hour, minute, idate, itime
         real (kind=8), intent(out), optional :: second
 
         ! local variables
@@ -301,29 +323,37 @@ contains
         ! calculate the currently stored date
         call get_date_from_seconds_since_1970(this%time_in_sec1970,iyear,imonth,iday,ihour,iminute,isecond)
 
-        ! set a year if present
+        ! get a year if present
         if (present(year)) then
             year = iyear
         end if
-        ! set a month if present
+        ! get a month if present
         if (present(month)) then
             month = imonth
         end if
-        ! add a day if present
+        ! get a day if present
         if (present(day)) then
             day = iday
         end if
-        ! add a hour if present
+        ! get a hour if present
         if (present(hour)) then
             hour = ihour
         end if
-        ! add a minute if present
+        ! get a minute if present
         if (present(minute)) then
             minute = iminute
         end if
-        ! add a second if present
+        ! get a second if present
         if (present(second)) then
             second = isecond
+        end if
+        ! get an integer representation of the date
+        if (present(idate)) then
+            idate = iyear*10000 + imonth * 100 + iday
+        end if
+        ! get an integer representation of the time
+        if (present(itime)) then
+            itime = ihour * 10000 + iminute * 100 + isecond
         end if
     end subroutine
 
@@ -441,5 +471,35 @@ contains
         ! calculate the date
         call get_date_from_seconds_since_1970(sec_since_1970,year,month,day,hour,minute,second)
         get_year_from_seconds_since_1970 = year
+    end function
+
+    !> @brief       Convert a list with datetime objects to an real(kind=8) array that is usable as timeaxis
+    !> param[in]    thelist List with datetime objects
+    function datetime_list_to_timeaxis(thelist) result (res)
+        real (kind=8), dimension(:), allocatable :: res
+        class(list) :: thelist
+
+        ! local variables
+        integer :: ntime, i
+        type (listiterator) :: iter
+        class (*), pointer :: dt
+        ntime = thelist%length()
+
+        ! create the result array
+        allocate(res(ntime))
+
+        ! iterate over the list
+        iter = thelist%get_iterator()
+        i = 0
+        do while (iter%hasnext())
+            i = i + 1
+            dt => iter%next()
+            select type (dt)
+                type is (datetime)
+                    res(i) = dt%time_in_sec1970
+                class default
+                    res(i) = fplus_fill_realk8
+            end select
+        end do
     end function
 end module
