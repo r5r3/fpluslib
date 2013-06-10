@@ -5,6 +5,9 @@ module fplus_list
     use fplus_object
     use fplus_strings
     use fplus_hashcode
+    use fplus_datetime
+    use fplus_fillvalue
+    use fplus_error
     implicit none
     private
 
@@ -61,7 +64,13 @@ module fplus_list
         procedure, public :: next => listiterator_next
         procedure, private :: next_element => listiterator_nextelement
     end type
-    
+
+    ! some interfaces for the interoperability with arrays
+    public :: assignment (=)
+    interface assignment (=)
+        module procedure list_to_realk8_array
+        module procedure list_to_realk4_array
+    end interface
 
 ! implementation of the procedures
 contains
@@ -308,6 +317,163 @@ contains
         class(list) :: this
         list_length = this%nelements
     end function
+
+    !> @public
+    !> @brief   Allow the assignment of a list to an allocatable array of the type real (kind=4)
+    subroutine list_to_intk4_array(out_array, in_list)
+        integer (kind=4), dimension(:), allocatable, intent(inout) :: out_array
+        class (list), intent(in) :: in_list
+
+        ! local variables
+        type (listiterator), allocatable :: iter
+        class (*), pointer :: value
+        integer :: i
+
+        ! allocate the array
+        if (.not.allocated(out_array)) then
+            allocate(out_array(in_list%length()))
+        else
+            if (size(out_array) /= in_list%length()) then
+                deallocate(out_array)
+                allocate(out_array(in_list%length()))
+            end if
+        end if
+
+        ! iterate over the list
+        iter = in_list%get_iterator()
+        i = 1
+        do while (iter%hasnext())
+            value => iter%next()
+            select type (value)
+                type is (integer(kind=4))
+                    out_array(i) = value
+                class default
+                    call fplus_error_print("Wrong data type in assignment!", "integer(kind=4), dimension(:) = list", FPLUS_WARN)
+                    call fplus_error_print("Supported type is integer (kind=4)", "integer(kind=4), dimension(:) = list", FPLUS_WARN)
+                    out_array(i) = fplus_fill_int
+            end select
+            i = i + 1
+        end do
+    end subroutine
+
+    !> @public
+    !> @brief   Allow the assignment of a list to an allocatable array of the type real (kind=4)
+    subroutine list_to_intk8_array(out_array, in_list)
+        integer (kind=8), dimension(:), allocatable, intent(inout) :: out_array
+        class (list), intent(in) :: in_list
+
+        ! local variables
+        type (listiterator), allocatable :: iter
+        class (*), pointer :: value
+        integer :: i
+
+        ! allocate the array
+        if (.not.allocated(out_array)) then
+            allocate(out_array(in_list%length()))
+        else
+            if (size(out_array) /= in_list%length()) then
+                deallocate(out_array)
+                allocate(out_array(in_list%length()))
+            end if
+        end if
+
+        ! iterate over the list
+        iter = in_list%get_iterator()
+        i = 1
+        do while (iter%hasnext())
+            value => iter%next()
+            select type (value)
+                type is (integer(kind=4))
+                    out_array(i) = value
+                type is (integer(kind=8))
+                    out_array(i) = value
+                class default
+                    call fplus_error_print("Wrong data type in assignment!", "integer(kind=8), dimension(:) = list", FPLUS_WARN)
+                    call fplus_error_print("Supported types are integer (kind=4/8)", "integer(kind=8), dimension(:) = list", FPLUS_WARN)
+                    out_array(i) = fplus_fill_intk8
+            end select
+            i = i + 1
+        end do
+    end subroutine
+
+    !> @public
+    !> @brief   Allow the assignment of a list to an allocatable array of the type real (kind=4)
+    subroutine list_to_realk4_array(out_array, in_list)
+        real (kind=4), dimension(:), allocatable, intent(inout) :: out_array
+        class (list), intent(in) :: in_list
+
+        ! local variables
+        type (listiterator), allocatable :: iter
+        class (*), pointer :: value
+        integer :: i
+
+        ! allocate the array
+        if (.not.allocated(out_array)) then
+            allocate(out_array(in_list%length()))
+        else
+            if (size(out_array) /= in_list%length()) then
+                deallocate(out_array)
+                allocate(out_array(in_list%length()))
+            end if
+        end if
+
+        ! iterate over the list
+        iter = in_list%get_iterator()
+        i = 1
+        do while (iter%hasnext())
+            value => iter%next()
+            select type (value)
+                type is (real(kind=4))
+                    out_array(i) = value
+                class default
+                    call fplus_error_print("Wrong data type in assignment!", "real(kind=4), dimension(:) = list", FPLUS_WARN)
+                    call fplus_error_print("Supported type is real (kind=4)", "real(kind=4), dimension(:) = list", FPLUS_WARN)
+                    out_array(i) = fplus_fill_real
+            end select
+            i = i + 1
+        end do
+    end subroutine
+
+    !> @public
+    !> @brief   Allow the assignment of a list to an allocatable array of the type real (kind=8)
+    !> @brief   This operation is also implemented for lists with datetime objects
+    subroutine list_to_realk8_array(out_array, in_list)
+        real (kind=8), dimension(:), allocatable, intent(inout) :: out_array
+        class (list), intent(in) :: in_list
+
+        ! local variables
+        type (listiterator), allocatable :: iter
+        class (*), pointer :: value
+        integer :: i
+
+        ! allocate the array
+        if (.not.allocated(out_array)) then
+            allocate(out_array(in_list%length()))
+        else
+            if (size(out_array) /= in_list%length()) then
+                deallocate(out_array)
+                allocate(out_array(in_list%length()))
+            end if
+        end if
+
+        ! iterate over the list
+        iter = in_list%get_iterator()
+        i = 1
+        do while (iter%hasnext())
+            value => iter%next()
+            select type (value)
+                class is (datetime)
+                    out_array(i) = value%time_in_sec1970
+                type is (real(kind=8))
+                    out_array(i) = value
+                class default
+                    call fplus_error_print("Wrong data type in assignment!", "real(kind=8), dimension(:) = list", FPLUS_WARN)
+                    call fplus_error_print("Supported types are real (kind=8) and datetime", "real(kind=8), dimension(:) = list", FPLUS_WARN)
+                    out_array(i) = fplus_fill_realk8
+            end select
+            i = i + 1
+        end do
+    end subroutine
 
     ! then the procedures for the iterator ------------------------------------
 

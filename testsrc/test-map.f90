@@ -50,13 +50,13 @@ program test_map
     call testmap%printContent()
     testval => testmap%get(1.1)
     print*, associated(testval)
-    v2 = toReal(testval)
+    v2 = to_real(testval)
     print*, "Key:",1.1,"Value:",v2
-    v8 = toRealK8(testmap%get(7.3))
+    v8 = to_real8(testmap%get(7.3))
     print*, "Key:",7.3,"Value:",v8
-    i = toInteger(testmap%get(2_8))
+    i = to_integer(testmap%get(2_8))
     print*, "Key:",2_8,"Value:",i
-    i8 = toIntegerK8(testmap%get(2))
+    i8 = to_integer8(testmap%get(2))
     print*, "Key:",2,"Value:",i8
 
     ! remove an element

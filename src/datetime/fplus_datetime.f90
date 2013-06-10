@@ -5,7 +5,7 @@ module fplus_datetime
     use fplus_hashcode
     use fplus_object
     use fplus_fillvalue
-    use fplus_list
+    use fplus_error
     implicit none
     private
 
@@ -30,7 +30,7 @@ module fplus_datetime
     end type
 
     ! make the constructor public
-    public :: new_datetime, get_date_from_seconds_since_1970, datetime_list_to_timeaxis
+    public :: new_datetime, get_date_from_seconds_since_1970
 
     ! pointer to the unit-system of the udunits2 library used for time conversion
     type(UT_SYSTEM_PTR) utsystem
@@ -54,7 +54,12 @@ module fplus_datetime
     integer, parameter, public :: DT_MINUTE = 5
     integer, parameter, public :: DT_SECOND = 6
 
-
+    !> @brief   assignment for datetime object
+    public :: assignment (=)
+    interface assignment (=)
+        module procedure class_star_to_datetime
+    end interface
+    
 ! the contents of the module follows
 contains
 
@@ -473,33 +478,20 @@ contains
         get_year_from_seconds_since_1970 = year
     end function
 
-    !> @brief       Convert a list with datetime objects to an real(kind=8) array that is usable as timeaxis
-    !> param[in]    thelist List with datetime objects
-    function datetime_list_to_timeaxis(thelist) result (res)
-        real (kind=8), dimension(:), allocatable :: res
-        class(list) :: thelist
-
-        ! local variables
-        integer :: ntime, i
-        type (listiterator) :: iter
-        class (*), pointer :: dt
-        ntime = thelist%length()
-
-        ! create the result array
-        allocate(res(ntime))
-
-        ! iterate over the list
-        iter = thelist%get_iterator()
-        i = 0
-        do while (iter%hasnext())
-            i = i + 1
-            dt => iter%next()
-            select type (dt)
-                type is (datetime)
-                    res(i) = dt%time_in_sec1970
-                class default
-                    res(i) = fplus_fill_realk8
-            end select
-        end do
-    end function
+    !> @public
+    !> @brief   assignment other datetime objects and real k8 values to datetime objects
+    subroutine class_star_to_datetime(outval, inval)
+        type(datetime), intent(inout) :: outval
+        class(*), intent(in) :: inval
+        select type (inval)
+            type is (real (kind=8))
+                outval%time_in_sec1970 = inval
+            type is (datetime)
+                outval%time_in_sec1970 = inval%time_in_sec1970
+            class default
+                call fplus_error_print("wrong type in assignment to datetime object, only real (kind=8) and datetime are supported", "datetime = class(*)", FPLUS_ERR)
+        end select
+    end subroutine
+    
+    
 end module

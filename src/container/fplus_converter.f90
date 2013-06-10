@@ -7,47 +7,47 @@ module fplus_converter
 
 contains
 
-    function toInteger(value)
-        integer :: toInteger
+    function to_integer(value)
+        integer :: to_integer
         class(*) :: value
         select type (value)
             type is (integer)
-                toInteger = value
+                to_integer = value
             class default
-                toInteger = fplus_fill_int
+                to_integer = fplus_fill_int
         end select
     end function
 
-    function toReal(value)
-        real :: toReal
+    function to_real(value)
+        real :: to_real
         class(*) :: value
         select type (value)
             type is (real (kind=4))
-                toReal = value
+                to_real = value
             class default
-                toReal = fplus_fill_real
+                to_real = fplus_fill_real
         end select
     end function
 
-    function toIntegerK8(value)
-        integer (kind=8) :: toIntegerK8
+    function to_integer8(value)
+        integer (kind=8) :: to_integer8
         class(*) :: value
         select type (value)
             type is (integer (kind=8))
-                toIntegerK8 = value
+                to_integer8 = value
             class default
-                toIntegerK8 = fplus_fill_intK8
+                to_integer8 = fplus_fill_intK8
         end select
     end function
 
-    function toRealK8(value)
-        real (kind=8) :: toRealK8
+    function to_real8(value)
+        real (kind=8) :: to_real8
         class(*) :: value
         select type (value)
             type is (real (kind=8))
-                toRealK8 = value
+                to_real8 = value
             class default
-                toRealK8 = fplus_fill_realK8
+                to_real8 = fplus_fill_realK8
         end select
     end function
 

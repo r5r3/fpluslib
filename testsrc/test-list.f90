@@ -25,8 +25,8 @@ program test_list
 
     ! get the first and the last value with the corresponding functions
     print*, "Show the first and the last element"
-    print*, "The first element:", toInteger(testlist%first())
-    print*, "The last element: ", toIntegerK8(testlist%last())
+    print*, "The first element:", to_integer(testlist%first())
+    print*, "The last element: ", to_integer8(testlist%last())
     print*, ""
 
 
@@ -37,7 +37,7 @@ program test_list
         if (.not.associated(testvalue)) then
             print*, "No value at position ", i
         else
-            print*, "The value at position", i, toInteger(testvalue)
+            print*, "The value at position", i, to_integer(testvalue)
         end if
     end do
     print*, ""
@@ -49,7 +49,7 @@ program test_list
     testiter = testlist%get_iterator()
     do while(testiter%hasnext())
         testvalue => testiter%next()
-        print*, "Next value: ", toInteger(testvalue)
+        print*, "Next value: ", to_integer(testvalue)
     end do
     print*, ""
 
@@ -57,7 +57,7 @@ program test_list
     testiter = testlist%get_iterator(1)
     do while(testiter%hasnext())
         testvalue => testiter%next()
-        print*, "Next value: ", toInteger(testvalue)
+        print*, "Next value: ", to_integer(testvalue)
     end do
     print*, ""
 
@@ -74,7 +74,7 @@ program test_list
     testiter = testlist%get_iterator()
     do while(testiter%hasnext())
         testvalue => testiter%next()
-        print*, "Next element: ", toRealK8(testvalue)
+        print*, "Next element: ", to_real8(testvalue)
     end do
     print*, ""
 

@@ -1,7 +1,7 @@
 #some variables
 
 # the default extension for a dynamic library
-OS=$(shell uname -s)
+OS:=$(shell uname -s)
 ifeq ($(OS),Darwin)
 	DYLIBEXT=dylib
 	EXTINC=-I/opt/local/include/udunits2
@@ -12,8 +12,8 @@ else
 endif
 
 # select a compiler, first choice if intel, then pgf, then gnu-mp-4.8
-FC=$(shell scripts/select_compiler.py --compilers intel pgf gnu-mp-4.8 --fc)
-CC=$(shell scripts/select_compiler.py --compilers intel pgf gnu-mp-4.8 --cc)
+FC:=$(shell scripts/select_compiler.py --compilers intel pgf gnu-mp-4.8 --fc)
+CC:=$(shell scripts/select_compiler.py --compilers intel pgf gnu-mp-4.8 --cc)
 ifeq ($(FC),ifort)
 	FCFLAGS=-module include -fpic -assume realloc_lhs
 	CCFLAGS=-fpic $(EXTINC)
@@ -34,7 +34,7 @@ ifeq ($(FC),gfortran-mp-4.8)
 endif
 
 # create a list of all objects
-SRCOBJ=$(shell scripts/module_build_order.py --src src --obj build)
+SRCOBJ:=$(shell scripts/module_build_order.py --src src --obj build)
 
 # compile everything
 all: bin include lib build lib/libfplus.$(DYLIBEXT) lib/libfplus.a
