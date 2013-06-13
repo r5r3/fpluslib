@@ -65,7 +65,7 @@ doc/html: src/* src/*/* testsrc/* doc/Doxyfile
 	doxygen doc/Doxyfile
 
 # compile tests
-tests: bin build include bin/test-up-1 bin/test-up-2 bin/test-list bin/test-map bin/test-datetime bin/test-regex
+tests: bin build include bin/test-up-1 bin/test-up-2 bin/test-list bin/test-map bin/test-datetime bin/test-regex bin/test-cdf bin/test-template
 
 bin/test-up-1: testsrc/test-up-1.f90
 	$(FC) $(FCFLAGS) -o $@ $<
@@ -73,21 +73,24 @@ bin/test-up-1: testsrc/test-up-1.f90
 bin/test-up-2: testsrc/test-up-2.f90
 	$(FC) $(FCFLAGS) -o $@ $<
 
-bin/test-list: lib/libfplus.$(DYLIBEXT) build/test-list.o
-	$(FC) $(FCFLAGS) -o $@ build/test-list.o $(LDFLAGS)
 
-bin/test-map: lib/libfplus.$(DYLIBEXT) testsrc/test-map.f90
-	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-map.f90
+# rule to link binaries
+bin/%: build/%.o lib/libfplus.$(DYLIBEXT) 
+	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) $<
 
-bin/test-datetime: lib/libfplus.$(DYLIBEXT) testsrc/test-datetime.f90
-	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-datetime.f90
-
-bin/test-regex: lib/libfplus.$(DYLIBEXT) testsrc/test-regex.f90
-	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) testsrc/test-regex.f90
-
+	
 # rule to compile fortran files
 build/%.o: src/%.f90
 	$(FC) $(FCFLAGS) -c -o $@ $<
+
+build/%.o: build/%.f90
+	$(FC) $(FCFLAGS) -c -o $@ $<
+
+build/%.f90: testsrc/%.F
+	scripts/generic.py $< -o $@
+
+build/%.f90: src/%.F
+	scripts/generic.py $< -o $@
 
 build/%.o: src/%.c
 	$(CC) $(CCFLAGS) -c -o $@ $<
