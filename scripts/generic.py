@@ -88,7 +88,7 @@ class template(object):
         
             # replace the places where one of the types is used
             for r in self.replacements:
-                re_type = re.compile("[\s\(,]+(%s)[\s\)\(,]+" % r[0])
+                re_type = re.compile("[\s\(,-]+(%s)[\s\)\(,-]+" % r[0])
                 while True:
                     m = re_type.search(impl)
                     if m == None:

@@ -21,8 +21,12 @@ module fplus_path
         procedure, public :: get_cstr_name => path_get_cstr_name
         !> @brief   Returns the extension of the file, if any.
         procedure, public :: get_extension => path_get_extension
+        !> @brief   Returns the path without the extension
+        procedure, public :: get_basename => path_get_basename
     end type
 
+    ! public procedures
+    public :: new_path
 
 contains
 
@@ -92,7 +96,24 @@ contains
         else
             res = trim(this%name(i1+1:))
         end if
-
     end function
 
+    !> @public
+    !> @brief   Returns the path without the extension
+    function path_get_basename(this) result (res)
+        class(path) :: this
+        character (len=:), allocatable :: res
+
+        !local variables
+        integer :: i1, i2
+
+        ! find the last dot
+        i1 = index(this%name, ".", back=.true.)
+        i2 = index(this%name, "/", back=.true.)
+        if (i1==0 .or. i1 <= i2 .or. i1 == len_trim(this%name)) then
+            res = this%name
+        else
+            res = trim(this%name(:i1-1))
+        end if
+    end function
 end module fplus_path
