@@ -4,7 +4,23 @@ module fplus_array_tools
     private
 
     ! list of public procedures
-    public :: valueindex, swap, array_copy, qsort
+    public :: valueindex, swap, array_copy, qsort, valueindex_largest_le, valueindex_largest_ge, valueindex_smallest_ge, valueindex_smallest_le
+
+    !>@ brief   Interface for the implementation of valueindex_largest_ge
+    interface template valueindex_largest_ge
+    end interface
+
+    !>@ brief   Interface for the implementation of valueindex_largest_le
+    interface template valueindex_largest_le
+    end interface
+
+    !>@ brief   Interface for the implementation of valueindex_smallest_ge
+    interface template valueindex_smallest_ge
+    end interface
+
+    !>@ brief   Interface for the implementation of valueindex_smallest_le
+    interface template valueindex_smallest_le
+    end interface
 
     !>@ brief   Interface for the implementations of valueindex
     interface template valueindex
@@ -24,6 +40,106 @@ module fplus_array_tools
 
 contains
     
+    template valueindex_largest_ge
+        replace :: T => real (kind=4); real (kind=8); integer (kind=4); integer (kind=8)
+    contains
+        !> @brief       Find the largest index that is less or equal to a given value
+        !> @param[in]   array       the array to search in
+        !> @param[in]   value       the value to search for
+        function valueindex_largest_ge(array, value) result (res)
+            T, dimension(:), intent(in) :: array
+            T, intent(in) :: value
+            integer :: res
+
+            ! local variables
+            integer :: ind
+            res = fplus_fill_int
+
+            ! loop over the array
+            do ind = ubound(array, 1), lbound(array, 1), -1
+                if (array(ind) >= value) then
+                    res = ind
+                    exit
+                end if
+            end do
+        end function
+    end template
+
+    template valueindex_largest_le
+        replace :: T => real (kind=4); real (kind=8); integer (kind=4); integer (kind=8)
+    contains
+        !> @brief       Find the largest index that is less or equal to a given value
+        !> @param[in]   array       the array to search in
+        !> @param[in]   value       the value to search for
+        function valueindex_largest_le(array, value) result (res)
+            T, dimension(:), intent(in) :: array
+            T, intent(in) :: value
+            integer :: res
+
+            ! local variables
+            integer :: ind
+            res = fplus_fill_int
+
+            ! loop over the array
+            do ind = ubound(array, 1), lbound(array, 1), -1
+                if (array(ind) <= value) then
+                    res = ind
+                    exit
+                end if
+            end do
+        end function
+    end template
+
+    template valueindex_smallest_ge
+        replace :: T => real (kind=4); real (kind=8); integer (kind=4); integer (kind=8)
+    contains
+        !> @brief       Find the smallest index that is greater or equal to a given value
+        !> @param[in]   array       the array to search in
+        !> @param[in]   value       the value to search for
+        function valueindex_smallest_ge(array, value) result (res)
+            T, dimension(:), intent(in) :: array
+            T, intent(in) :: value
+            integer :: res
+
+            ! local variables
+            integer :: ind
+            res = fplus_fill_int
+
+            ! loop over the array
+            do ind = lbound(array, 1), ubound(array, 1)
+                if (array(ind) >= value) then
+                    res = ind
+                    exit
+                end if
+            end do
+        end function
+    end template
+
+    template valueindex_smallest_le
+        replace :: T => real (kind=4); real (kind=8); integer (kind=4); integer (kind=8)
+    contains
+        !> @brief       Find the smallest index that is greater or equal to a given value
+        !> @param[in]   array       the array to search in
+        !> @param[in]   value       the value to search for
+        function valueindex_smallest_le(array, value) result (res)
+            T, dimension(:), intent(in) :: array
+            T, intent(in) :: value
+            integer :: res
+
+            ! local variables
+            integer :: ind
+            res = fplus_fill_int
+
+            ! loop over the array
+            do ind = lbound(array, 1), ubound(array, 1)
+                if (array(ind) <= value) then
+                    res = ind
+                    exit
+                end if
+            end do
+        end function
+    end template
+
     template valueindex
         replace :: T => real (kind=4); real (kind=8); integer (kind=4); integer (kind=8)
     contains
