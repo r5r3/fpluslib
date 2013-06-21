@@ -107,7 +107,7 @@ contains
 
             ! change the representation in the new array to the representation of range if needed
             new_coord_array = old_coord_array
-            if (lon_type(1) /= lon_type(2) .and. any(value_in_range(new_coord_array, range) == .false.)) then
+            if (lon_type(1) /= lon_type(2) .and. any(value_in_range(new_coord_array, range) .eqv. .false.)) then
                 if (lon_type(2) == -1) then
                     where (new_coord_array > 180)
                         new_coord_array = new_coord_array - 360
@@ -120,7 +120,7 @@ contains
             end if
             
             ! check again if the range is within the array
-            if (any(value_in_range(new_coord_array, range) == .false.)) then
+            if (any(value_in_range(new_coord_array, range) .eqv. .false.)) then
                 call fplus_error_print("unexpected error", "rot_lon_to_range")
             end if
 
