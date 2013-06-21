@@ -15,12 +15,18 @@ class template(object):
     # group 1: name of the template
     # group 2: declaration section
     # group 3: implementation section
-    re_template = re.compile("[ \t]*template[ \t]+([\S]+)[ \t]*\n([\s|\S]+)contains([\s|\S]+)[ \t]*end[ \t]+template", flags=re.IGNORECASE)   
+    re_template = re.compile("[ \t]*template[ \t]+(\S[\S ]+)[ \t]*\n([\s|\S]+)contains([\s|\S]+)[ \t]*end[ \t]+template", flags=re.IGNORECASE)   
    
     # regular expression for the declaration of the replacements
     # group 1: string to replace
     # group 2: list of replacements
     re_replace = re.compile("[ \t]*replace[ \t]*::[ \t]*(\S+)[ \t]*=>[ \t]*(.+)", flags=re.IGNORECASE)
+    
+    # regular expression for the declaration of the replacements with foreach attribute
+    # group 1: variable for which this replacement is used
+    # group 2: string to replace
+    # group 3: list of replacements
+    re_replace_foreach = re.compile("[ \t]*replace[ \t]*,[ \t]*foreach[ \t]*\([ \t]*(\S+)[ \t]*\)[ \t]*::[ \t]*(\S+)[ \t]*=>[ \t]*(.+)", flags=re.IGNORECASE)
     
     # a regular expression to get function or subroutine names
     re_proc = re.compile("(function|subroutine)[ \t]+(\S+)[ \t]*\(")
@@ -48,9 +54,38 @@ class template(object):
                 if replacements[i].lower() == "nil":
                     replacements[i] = ""
             self.replacements.append((m.group(1), replacements))
+        for m in self.re_replace_foreach.finditer(match.group(2)):
+            replacement_string = m.group(3)
+            replacement_string = replacement_string.replace("numeric", "real (kind=4);real (kind=8);integer (kind=4);integer (kind=8);complex (kind=8); complex (kind=16)")
+            replacements = replacement_string.split(";")
+            ref_variable = m.group(1)
+            for i in range(len(replacements)):
+                replacements[i] = replacements[i].strip()
+                # nil means nothing, remove it
+                if replacements[i].lower() == "nil":
+                    replacements[i] = ""
+            # serach the replacements belonging to the reference variable
+            found_ref_variable = False
+            for i in range(len(self.replacements)):
+                if ref_variable.lower() == self.replacements[i][0].lower():
+                    ref_repl_temp = self.replacements[i][1]
+                    ref_repl_new = []
+                    repl_new = []
+                    for ref_repl in ref_repl_temp:
+                        for repl in replacements:
+                            ref_repl_new.append(ref_repl)
+                            repl_new.append(repl)
+                    self.replacements[i] = (self.replacements[i][0], ref_repl_new)
+                    replacements = repl_new
+                    found_ref_variable = True
+                    break
+            if found_ref_variable == False:
+                Error("variable refered to in foreach attribute not found: %s" % ref_variable)
+            self.replacements.append((m.group(2), replacements))
+
         # at least one replacement is needed
         if len(self.replacements) == 0:
-            Error("no replacements defined in template %s" % match.group(1))
+            Error("no replacements defined in template %s" % match.group(1).strip())
         # check if all replacements have the same length
         nvariants = 0
         for r in self.replacements:
@@ -203,18 +238,18 @@ def workOnFile(infile, outfile):#
     pindex = 1
     while True:
         part1 = parts[pindex]
-        match = re.search("^[ \t]*template[ \t]+([\S]+)", part1, flags=re.IGNORECASE+re.MULTILINE)
+        match = re.search("^[ \t]*template[ \t]+(\S[\S ]+)", part1, flags=re.IGNORECASE+re.MULTILINE)
         if match == None:
             break
         # find the end of the block
         endmatch = re.search("[ \t]*end[ \t]+template", part1[match.span()[0]:])
         if endmatch == None:
-            Error("template %s has no ending!" % match.group(1))
+            Error("template %s has no ending!" % match.group(1).strip())
         span = (match.span()[0], match.span()[0]+endmatch.span()[1])
         parts2 = devideContent(span, part1)
         # create a new template object
         temp = template(parts2[1])
-        templates[match.group(1)] = temp
+        templates[match.group(1).strip()] = temp
         # override the current list element
         parts[pindex] = parts2[0]
         # insert the end
@@ -224,7 +259,7 @@ def workOnFile(infile, outfile):#
         pindex = pindex + 2
         
     # find interfaces in the declaration section
-    re_interface = re.compile("^[ \t]*interface[ \t]+template[ \t]+([\S]+)[ \t]*\n([ \t]*end[ \t]+interface)", flags=re.IGNORECASE+re.MULTILINE)
+    re_interface = re.compile("^[ \t]*interface[ \t]+template[ \t]+([\S \t]+)[ \t]*\n([ \t]*end[ \t]+interface)", flags=re.IGNORECASE+re.MULTILINE)
     part1 = parts[1]
     while True:
         match = re_interface.search(part1)
@@ -233,18 +268,21 @@ def workOnFile(infile, outfile):#
         interface_parts = devideContent(match.span(), part1)
         # get the indention 
         ind = interface_parts[1].lower().index("interface")+4
-        # get the corresponding template
-        try:
-            temp = templates[match.group(1)]
-        except KeyError:
-            Error("the implementation of the interface %s was not found!" % match.group(1))
-        # construct the new interface
-        new_interface = interface_parts[1][:ind+6] + match.group(1)+"\n"
-        for pm in temp.getProcedureNames():
-            new_interface += " "*ind
-            if pm_block.group(1).lower() == "module":
-                new_interface += "module "
-            new_interface += "procedure " + pm + "\n"
+        # how many templates are listed? 
+        template_names = match.group(1).split(",")
+        # construct the new interface, the name of the first template is used as generic name
+        new_interface = interface_parts[1][:ind+6] + template_names[0].strip()+"\n"
+        for template_name in template_names:
+            # get the corresponding template
+            try:
+                temp = templates[template_name.strip()]
+            except KeyError:
+                Error("the implementation of the interface %s was not found!" % match.group(1))
+            for pm in temp.getProcedureNames():
+                new_interface += " "*ind
+                if pm_block.group(1).lower() == "module":
+                    new_interface += "module "
+                new_interface += "procedure " + pm + "\n"
         new_interface += match.group(2)
         interface_parts[1] = new_interface
         part1 = recombineSplits(interface_parts)
