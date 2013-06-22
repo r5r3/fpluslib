@@ -26,6 +26,11 @@ module fplus_list
         integer, private :: nelements
         class(element), pointer, private :: firstElement => null()
         class(element), pointer, private :: lastElement => null()
+        !> @brief   the last indext acessed by list%get ist stored here, the variable
+        !>          has to be updated by all methodes that manipulate the list
+        integer, private :: last_index_in_get = 0
+        !> @brief   a pointer to the last elements acessed in list%get
+        class(element), pointer, private :: last_element_in_get => null()
         ! procedures
     contains
         !> @brief   Appends the specified value to the end of this list.
@@ -86,6 +91,7 @@ contains
         new_list%firstElement => null()
         new_list%lastElement => null()
         new_list%nelements = 0
+        new_list%last_index_in_get = 0
     end function
 
     !> @public
@@ -154,6 +160,8 @@ contains
     !> @param[in]   value   value to be added
     !> @param[in]   copy    if present and .true., the value will be copied and not linked. The
     !>                      default operation is to store a pointer to the value.
+    !> @todo        add elements somewhere in the list, not only at the end.
+    !> @todo        change the last accessed element after a element was added somewhere in the list.
     subroutine list_add(this, value, copy)
         class(list) :: this
         class(*), target :: value
@@ -190,30 +198,56 @@ contains
         class(list) :: this
         integer :: ind
         class(*), pointer :: list_get
+
+        ! local variables
         class(element), pointer :: nextele
-        integer :: i
+        integer :: i, dist
 
         ! check if the index is valid
         if (ind > this%nelements .or. ind <= 0) then
             list_get => null()
+            this%last_index_in_get = 0
             return
         end if
 
         ! check if ind is the first or the last index
         if (ind == 1) then
             list_get => this%firstElement%value
+            this%last_element_in_get => this%firstElement
+            ! store the index as last accessed index
+            this%last_index_in_get = ind
             return
         end if
         if (ind == this%nelements) then
             list_get => this%lastElement%value
+            this%last_element_in_get => this%lastElement
+            ! store the index as last accessed index
+            this%last_index_in_get = ind
             return
         end if
 
-        ! find the element at the given position
-        nextele => this%firstElement
-        do i = 2, ind
-            nextele => nextele%nextElement
-        end do
+        ! find the element at the given position, start at the last accessed position if possible
+        if (this%last_index_in_get /= 0) then
+            nextele => this%last_element_in_get
+        else
+            nextele => this%firstElement
+            this%last_index_in_get = 1
+        end if
+        ! calculate the distance to the element we want
+        dist = ind - this%last_index_in_get
+        ! iterate over the elements between the last element and the searched element
+        if (dist > 0) then
+            do i = 1, dist
+                nextele => nextele%nextElement
+            end do
+        else if (dist < 0) then
+            do i = 1, abs(dist)
+                nextele => nextele%prevElement
+            end do
+        end if
+        ! store the last accessed element
+        this%last_index_in_get = ind
+        this%last_element_in_get => nextele
         list_get => nextele%value
     end function
 
@@ -307,6 +341,8 @@ contains
             this%firstElement => null()
             this%lastElement => null()
             this%nelements = 0
+            this%last_index_in_get = 0
+            this%last_element_in_get => null()
         end if
     end subroutine
 
