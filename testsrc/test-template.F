@@ -1,30 +1,8 @@
 !> @brief   A test for the template script
-program test_template
-    implicit none
+module mod_test_template
 
     interface template swap
     end interface
-
-    ! local variables
-    integer :: a, b
-    real, dimension(2,2) :: c, d
-
-    ! at first swap two integers
-    a = 1
-    b = 2
-    call swap(a, b)
-    print*, a, b
-
-    ! then swap two arrays
-    c = 1
-    d = 2
-    call swap(c, d)
-    print*, c
-    print*, d
-
-    ! now take the mask version
-    call swap(a, b, .false.)
-    print*, a, b
 
 contains
 
@@ -56,5 +34,32 @@ contains
             end if
         end subroutine
     end template
+
+end module
+
+program test_template
+    use mod_test_template
+    implicit none
+
+    ! local variables
+    integer :: a, b
+    real, dimension(2,2) :: c, d
+
+    ! at first swap two integers
+    a = 1
+    b = 2
+    call swap(a, b)
+    print*, a, b
+
+    ! then swap two arrays
+    c = 1
+    d = 2
+    call swap(c, d)
+    print*, c
+    print*, d
+
+    ! now take the mask version
+    call swap(a, b, .false.)
+    print*, a, b
 
 end program test_template

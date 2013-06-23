@@ -55,7 +55,7 @@ program test_list
     call testlist%add(7.5, ind=6)
     print*, testlist%to_string()
 
-    print*, "The value at the 4th position: " // type_to_string(testlist%get(4)) // char(10)
+    print*, "The value at the 4th position: " // trim(type_to_string(testlist%get(4))) // char(10)
 
     print*, "Remove the first element"
     call testlist%remove(1)
@@ -69,7 +69,7 @@ program test_list
     call testlist%remove(5)
     print*, testlist%to_string()
 
-    print*, "The value at the 4th position: " // type_to_string(testlist%get(4)) // char(10)
+    print*, "The value at the 4th position: " // trim(type_to_string(testlist%get(4))) // char(10)
 
     print*, "Use an iterator to iterate through the list"
     print*, "-> at first forwards"
