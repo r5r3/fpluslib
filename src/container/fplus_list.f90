@@ -37,6 +37,10 @@ module fplus_list
         procedure, public :: add => list_add
         !> @brief   Returns the value at the specified position in this list.
         procedure, public :: get => list_get
+        !> @brief   Returns the element at the specified position in this list, internaly used only
+        procedure, private :: get_element => list_get_element
+        !> @brief   Remove an element at the specified position
+        procedure, public :: remove => list_remove
         !> @brief   Returns the first value in the list.
         procedure, public :: first => list_first
         !> @brief   Returns the first value in the list.
@@ -160,13 +164,27 @@ contains
     !> @param[in]   value   value to be added
     !> @param[in]   copy    if present and .true., the value will be copied and not linked. The
     !>                      default operation is to store a pointer to the value.
-    !> @todo        add elements somewhere in the list, not only at the end.
-    !> @todo        change the last accessed element after a element was added somewhere in the list.
-    subroutine list_add(this, value, copy)
+    !> @param[in]   ind     the index of the new element. If there is already an element, then it is shifted.
+    subroutine list_add(this, value, copy, ind)
         class(list) :: this
         class(*), target :: value
         logical, optional :: copy
+        integer, optional :: ind
+
+        ! local variables
         logical :: copyValue
+        integer :: new_index
+        class(element), pointer :: current_element, added_element
+
+        ! ia a position given?
+        if (present(ind)) then
+            new_index = ind
+            if (new_index > this%nelements +1 .or. new_index < 1) then
+                call fplus_error_print("index for new element out of bounds", "list%add")
+            end if
+        else
+            new_index = this%nelements + 1
+        end if
 
         ! copy or link?
         if (present(copy)) then
@@ -180,8 +198,29 @@ contains
             this%firstElement => new_element(value, null(), null(), copyValue)
             this%lastElement => this%firstElement
         else
-            this%lastElement%nextElement => new_element(value, this%lastElement, null(), copyValue)
-            this%lastElement => this%lastElement%nextElement
+            ! 1. the element will be the new last element
+            if (new_index == this%nelements+1) then
+                this%lastElement%nextElement => new_element(value, this%lastElement, null(), copyValue)
+                this%lastElement => this%lastElement%nextElement
+            ! 2. the element will be the new first element
+            else if (new_index == 1) then
+                this%firstElement%prevElement => new_element(value, null(), this%firstElement, copyValue)
+                this%firstElement => this%firstElement%prevElement
+                ! change the last accessed element in get
+                if (this%last_index_in_get /= 0) this%last_index_in_get = this%last_index_in_get + 1
+            ! 3. the element will be somewhere in between
+            else
+                ! find the element now stored at the given position
+                current_element => this%get_element(new_index)
+                if (.not.associated(current_element)) call fplus_error_print("unexpected error, element at position " // type_to_string(new_index) // " not found", "list%add")
+                ! create the new element
+                added_element => new_element(value, current_element%prevElement, current_element, copyValue)
+                ! put it in between the old prev and next elements
+                current_element%prevElement%nextElement => added_element
+                current_element%prevElement => added_element
+                ! change the cached element in get, the index is not changed
+                this%last_element_in_get => added_element
+            end if
         end if
         ! count the elements
         this%nelements = this%nelements + 1
@@ -194,32 +233,51 @@ contains
     !> @param[in]   this    reference to the map object, automatically set by fortran
     !> @param[in]   ind     the index of the searched value.
     !> @return      Returns the value if the index is in the list, otherwise a null-pointer.
-    function list_get(this, ind)
+    function list_get(this, ind) result (res)
         class(list) :: this
         integer :: ind
-        class(*), pointer :: list_get
+        class(*), pointer :: res
 
         ! local variables
         class(element), pointer :: nextele
+
+        ! get the element
+        nextele => this%get_element(ind)
+
+        ! copy the value pointer
+        res => null()
+        if (associated(nextele)) res => nextele%value
+    end function
+
+    !> @brief       Returns the element at the specified position in this list.
+    !> @param[in]   this    reference to the map object, automatically set by fortran
+    !> @param[in]   ind     the index of the searched element.
+    !> @return      Returns the element if the index is in the list, otherwise a null-pointer.
+    function list_get_element(this, ind) result (res)
+        class(list) :: this
+        integer :: ind
+        class(element), pointer :: res
+
+        ! local variables
         integer :: i, dist
 
         ! check if the index is valid
         if (ind > this%nelements .or. ind <= 0) then
-            list_get => null()
+            res => null()
             this%last_index_in_get = 0
             return
         end if
 
         ! check if ind is the first or the last index
         if (ind == 1) then
-            list_get => this%firstElement%value
+            res => this%firstElement
             this%last_element_in_get => this%firstElement
             ! store the index as last accessed index
             this%last_index_in_get = ind
             return
         end if
         if (ind == this%nelements) then
-            list_get => this%lastElement%value
+            res => this%lastElement
             this%last_element_in_get => this%lastElement
             ! store the index as last accessed index
             this%last_index_in_get = ind
@@ -228,9 +286,9 @@ contains
 
         ! find the element at the given position, start at the last accessed position if possible
         if (this%last_index_in_get /= 0) then
-            nextele => this%last_element_in_get
+            res => this%last_element_in_get
         else
-            nextele => this%firstElement
+            res => this%firstElement
             this%last_index_in_get = 1
         end if
         ! calculate the distance to the element we want
@@ -238,17 +296,16 @@ contains
         ! iterate over the elements between the last element and the searched element
         if (dist > 0) then
             do i = 1, dist
-                nextele => nextele%nextElement
+                res => res%nextElement
             end do
         else if (dist < 0) then
             do i = 1, abs(dist)
-                nextele => nextele%prevElement
+                res => res%prevElement
             end do
         end if
         ! store the last accessed element
         this%last_index_in_get = ind
-        this%last_element_in_get => nextele
-        list_get => nextele%value
+        this%last_element_in_get => res
     end function
 
     !> @public
@@ -344,6 +401,60 @@ contains
             this%last_index_in_get = 0
             this%last_element_in_get => null()
         end if
+    end subroutine
+
+    !> @public
+    !> @brief       Remove an element at the specified position
+    !> @param[in]   this    reference to the list object, automatically set by fortran
+    !> @param[in]   ind     the index to remove
+    subroutine list_remove(this, ind)
+        class(list) :: this
+        integer, intent(in) :: ind
+
+        ! local variables
+        class(element), pointer :: elem
+
+        ! get the element stored at the given index
+        if (ind < 1 .or. ind > this%nelements) call fplus_error_print("index out of bounds", "list%remove")
+        elem => this%get_element(ind)
+        if (.not.associated(elem)) call fplus_error_print("unexpected error", "list%remove")
+
+        ! change the links in the next and previous element
+        if (associated(elem%prevElement)) then
+            elem%prevElement%nextElement => elem%nextElement
+        else
+            this%firstElement => elem%nextElement
+        end if
+        if (associated(elem%nextElement)) then
+            elem%nextElement%prevElement => elem%prevElement
+        else
+            this%lastElement => elem%prevElement
+        end if
+
+        ! change the last element accessed in get
+        if (associated(elem%nextElement)) then
+            ! change the link to the element, the index is not changed
+            this%last_element_in_get => elem%nextElement
+        else if (associated(elem%prevElement)) then
+            ! this is the last element, change the element as well as the index
+            this%last_index_in_get = ind -1
+            this%last_element_in_get => elem%prevElement
+        else
+            ! there was only this element in the list
+            this%last_index_in_get = 0
+            this%last_element_in_get => null()
+        end if
+
+        ! deallocate the value, if it is a copy
+        if (elem%valueIsCopy) then
+            deallocate(elem%value)
+        end if
+
+        ! deallocate the element itself
+        deallocate(elem)
+
+        ! reduce the number of stored elements
+        this%nelements = this%nelements - 1
     end subroutine
 
     !> @public

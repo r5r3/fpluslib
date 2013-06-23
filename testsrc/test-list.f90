@@ -1,5 +1,6 @@
 program test_list
     use fplus_container
+    use fplus_strings
     implicit none
     ! a variable for a new list
     type(list) :: testlist
@@ -31,7 +32,7 @@ program test_list
 
 
 
-    print*, "Use the slow get function to iterate through the list"
+    print*, "Use the get function to iterate through the list"
     do i = 0, testlist%length() +1
         testvalue => testlist%get(i)
         if (.not.associated(testvalue)) then
@@ -42,9 +43,35 @@ program test_list
     end do
     print*, ""
 
+    print*, "Add an value (0.5) at the first position"
+    call testlist%add(0.5, ind=1)
+    print*, testlist%to_string()
 
+    print*, "Add an value (8) at the last position"
+    call testlist%add(8, ind=testlist%length()+1)
+    print*, testlist%to_string()
 
-    print*, "Use an fast iterator to iterate through the list"
+    print*, "Add an value (7.5) at the index 6"
+    call testlist%add(7.5, ind=6)
+    print*, testlist%to_string()
+
+    print*, "The value at the 4th position: " // type_to_string(testlist%get(4)) // char(10)
+
+    print*, "Remove the first element"
+    call testlist%remove(1)
+    print*, testlist%to_string()
+
+    print*, "Remove the last element"
+    call testlist%remove(testlist%length())
+    print*, testlist%to_string()
+
+    print*, "Remove the element at the 5th position"
+    call testlist%remove(5)
+    print*, testlist%to_string()
+
+    print*, "The value at the 4th position: " // type_to_string(testlist%get(4)) // char(10)
+
+    print*, "Use an iterator to iterate through the list"
     print*, "-> at first forwards"
     testiter = testlist%get_iterator()
     do while(testiter%hasnext())
