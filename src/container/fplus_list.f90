@@ -376,11 +376,13 @@ contains
     !> @details     This subroutine completely resets the list to its initial state and frees up all
     !>              the allocated memory. Call is before deallocation of a list object to ensure that
     !>              no memory is leaked.
-    !> @param[in]   this    reference to the list object, automatically set by fortran
-    subroutine list_clear(this)
+    !> @param[in]   this        reference to the list object, automatically set by fortran
+    !> @param[in]   dealloc_all set to thure to deallocate not only copied values in the list but all values
+    subroutine list_clear(this, dealloc_all)
         class(list) :: this
         type(listiterator) :: iter
         class(element), pointer :: elem
+        logical, optional :: dealloc_all
 
         ! are the elements in the list?
         if (this%nelements > 0) then
@@ -388,7 +390,7 @@ contains
             do while(iter%hasnext())
                 elem => iter%next_element()
                 ! deallocate the value, if it is a copy
-                if (elem%valueIsCopy) then
+                if (elem%valueIsCopy .or. (present(dealloc_all) .and. (dealloc_all .eqv. .true.))) then
                     deallocate(elem%value)
                 end if
                 deallocate(elem)
