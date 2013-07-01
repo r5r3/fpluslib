@@ -1,0 +1,86 @@
+!> @brief   Function for the serialization of derived types
+module fplus_serialization
+    use, intrinsic :: ISO_C_BINDING
+    implicit none
+    private
+
+    ! list of public procedures
+    public :: new_buffer
+
+    !> @brief   the buffer data type contains a byte (int kind 1) array and a cursor to track 
+    !>          read and write operations
+    type, public :: buffer
+        integer(kind=1), dimension(:), pointer :: array
+        integer(kind=C_size_t) :: cursor
+    contains
+        !> @brief   write an array of any type to the buffer
+        generic, public :: put => template buffer_put
+    end type
+
+    ! the C memcpy function is used to transfer data into an buffer array
+    interface
+        subroutine C_memcpy(destination, source, nbytes) bind(C,name="memcpy")
+            import :: C_ptr, C_size_t
+            type(C_ptr), value :: destination, source
+            integer(C_size_t), value, intent(in) :: nbytes
+        end subroutine
+    end interface
+
+contains
+
+    ! functions for the buffer type ---------------------------------------------------------------
+
+    !> @brief       Create a new buffer object 
+    !> @param[in]   buffer_size     the size of the new buffer in bytes
+    !> @result      an initialed and allocated buffer object
+    function new_buffer(buffer_size) result (res)
+        integer (kind=C_size_t) :: buffer_size
+        type (buffer) :: res
+
+        ! the cursor points to the first byte
+        res%cursor = 1
+
+        ! the data array is allocated with the given size
+        allocate(res%array(buffer_size))
+    end function
+
+
+    template buffer_put
+        replace :: D => nil; dimension(:),; dimension(:,:),; dimension(:,:,:),; dimension(:,:,:,:),; dimension(:,:,:,:,:),
+        replace :: F => nil; (1); (1,1); (1,1,1); (1,1,1,1); (1,1,1,1,1)
+        replace :: S => 1_8; size(array); size(array); size(array); size(array); size(array)
+        replace, foreach(D,F,S) :: T => numeric
+    contains
+        !> @brief       write an array of any type to the buffer
+        !> @param[in]   this    reference to the buffer object, automatically set by fortran
+        subroutine buffer_put(this, array)
+            class(buffer) :: this
+            T, D target :: array
+
+            !local variables
+            integer (kind=C_size_t) :: nbytes
+            T, pointer :: array_ptr
+            integer (kind=1), pointer :: buffer_ptr
+
+            ! we need a pointer to the first element of the array to store and to the element at the cursor position of the buffer
+            array_ptr => array F
+            buffer_ptr => this%array(this%cursor)
+
+            ! calculate the number of bytes needed to store the input array. storage_size is a fortran 2008 function.
+            nbytes = storage_size(array)/8_8 * S
+            
+            ! is there enough space in the buffer-array?
+            if (this%cursor + nbytes > size(this%array)+1) then
+                print*, "ERROR in buffer%put: the capacity of this buffer is to small!"
+                call exit(-1)
+            end if
+
+            !perform the copy 
+            call C_memcpy(c_loc(buffer_ptr), c_loc(array_ptr), nbytes)  
+
+            ! move the cursor
+            this%cursor = this%cursor + nbytes
+        end subroutine
+    end template
+
+end module

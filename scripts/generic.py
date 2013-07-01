@@ -57,30 +57,34 @@ class template(object):
         for m in self.re_replace_foreach.finditer(match.group(2)):
             replacement_string = m.group(3)
             replacement_string = replacement_string.replace("numeric", "real (kind=4);real (kind=8);integer (kind=4);integer (kind=8);complex (kind=8); complex (kind=16)")
-            replacements = replacement_string.split(";")
-            ref_variable = m.group(1)
-            for i in range(len(replacements)):
-                replacements[i] = replacements[i].strip()
+            replacements_form_line = replacement_string.split(";")
+            ref_variables = m.group(1).split(",")
+            for i in range(len(ref_variables)):
+                ref_variables[i] = ref_variables[i].strip()
+            for i in range(len(replacements_form_line)):
+                replacements_form_line[i] = replacements_form_line[i].strip()
                 # nil means nothing, remove it
-                if replacements[i].lower() == "nil":
-                    replacements[i] = ""
+                if replacements_form_line[i].lower() == "nil":
+                    replacements_form_line[i] = ""
             # serach the replacements belonging to the reference variable
-            found_ref_variable = False
-            for i in range(len(self.replacements)):
-                if ref_variable.lower() == self.replacements[i][0].lower():
-                    ref_repl_temp = self.replacements[i][1]
-                    ref_repl_new = []
-                    repl_new = []
-                    for ref_repl in ref_repl_temp:
-                        for repl in replacements:
-                            ref_repl_new.append(ref_repl)
-                            repl_new.append(repl)
-                    self.replacements[i] = (self.replacements[i][0], ref_repl_new)
-                    replacements = repl_new
-                    found_ref_variable = True
-                    break
-            if found_ref_variable == False:
-                Error("variable refered to in foreach attribute not found: %s" % ref_variable)
+            for ref_variable in ref_variables:
+                replacements = replacements_form_line
+                found_ref_variable = False
+                for i in range(len(self.replacements)):
+                    if ref_variable.lower() == self.replacements[i][0].lower():
+                        ref_repl_temp = self.replacements[i][1]
+                        ref_repl_new = []
+                        repl_new = []
+                        for ref_repl in ref_repl_temp:
+                            for repl in replacements:
+                                ref_repl_new.append(ref_repl)
+                                repl_new.append(repl)
+                        self.replacements[i] = (self.replacements[i][0], ref_repl_new)
+                        replacements = repl_new
+                        found_ref_variable = True
+                        break
+                if found_ref_variable == False:
+                    Error("variable refered to in foreach attribute not found: %s" % ref_variable)
             self.replacements.append((m.group(2), replacements))
 
         # at least one replacement is needed

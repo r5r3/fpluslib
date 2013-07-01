@@ -65,7 +65,7 @@ doc/html: src/* src/*/* testsrc/* doc/Doxyfile
 	doxygen doc/Doxyfile
 
 # compile tests
-tests: bin build include bin/test-up-1 bin/test-up-2 bin/test-list bin/test-map bin/test-datetime bin/test-regex bin/test-cdf bin/test-template
+tests: bin build include bin/test-up-1 bin/test-up-2 bin/test-list bin/test-map bin/test-datetime bin/test-regex bin/test-cdf bin/test-template bin/test-serialization
 
 bin/test-up-1: testsrc/test-up-1.f90
 	$(FC) $(FCFLAGS) -o $@ $<
