@@ -58,4 +58,11 @@ program test_serialization
 	print*, "Content of test_array_2:"
 	print*, test_array_2
 
+	! calculate the size of different types
+	print*, ""
+	print*, "Size of integer:         		   ", buf%byte_size(300)
+	print*, "Size of integer (kind=8):		   ", buf%byte_size(300_8)
+	print*, "Size of test_array_2:    		   ", buf%byte_size(test_array_2)
+	print*, "Size of test_array_2 with bounds: ", buf%byte_size_with_bounds(test_array_2)
+
 end program

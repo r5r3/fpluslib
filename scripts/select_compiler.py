@@ -28,9 +28,21 @@ def find_compiler(suite):
     elif suite == "pgf":
         fc = "pgfortran"
         cc = "pgcc"
+    elif suite == "gnu-mp-4.7":
+        fc = "gfortran-mp-4.7"
+        cc = "gcc"
     elif suite == "gnu-mp-4.8":
         fc = "gfortran-mp-4.8"
         cc = "gcc"
+    elif suite == "gnu":
+        fc = "gfortran"
+        cc = "gcc"
+    elif suite == "mpi":
+        fc = "mpif90"
+        cc = "mpicc"
+    elif suite == "openmpi":
+        fc = "openmpif90"
+        cc = "openmpicc"
     else:
         print("ERROR: unknown compiler suite: %s", suite)
         exit(-1)
@@ -47,21 +59,26 @@ def find_compiler(suite):
 if __name__ == "__main__":
     # create a parser for command line arguments
     parser = argparse.ArgumentParser(description=__doc__.replace("_at_", "@"), formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--compilers', required=True, nargs="+", choices=["intel", "gnu-mp-4.8", "pgf"], help="Which compiler should be searched?")
+    parser.add_argument('--compilers', required=True, nargs="+", choices=["intel", "gnu-mp-4.8", "gnu-mp-4.7", "gnu", "pgf", "mpi", "openmpi"], help="Which compiler should be searched?")
     parser.add_argument('--fc', required=False, action='store_const', const=True, help = "Find the FORTRAN compiler.")
     parser.add_argument('--cc', required=False, action='store_const', const=True, help = "Find the C compiler.")
+    parser.add_argument('--suite', required=False, action='store_const', const=True, help = "Find the name available compiler suite.")
+
     #pares the arguments
     args = parser.parse_args()
 
     #try each compiler listed in --compilers and return the first one found.
     for comp in args.compilers:
         fc, cc = find_compiler(comp)
-	if fc != None and args.fc == True:
-            print(fc)
-            exit(0)
-	if cc != None and args.cc == True:
-            print(cc)
-            exit(0)
+    	if fc != None and args.fc == True:
+                print(fc)
+                exit(0)
+        if cc != None and args.cc == True:
+                print(cc)
+                exit(0)
+        if cc != None and fc != None and args.suite == True:
+                print(comp)
+                exit(0)
 
     # no compiler was found
     print("ERROR: no compiler found!")

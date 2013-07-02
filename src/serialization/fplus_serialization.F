@@ -23,6 +23,10 @@ module fplus_serialization
         generic, public :: put_with_bounds => template buffer_put_with_bounds
         !> @brief   read an array of any type from the buffer and restore its bounds. The array has to be allocatable.
         generic, public :: get_with_bounds => template buffer_get_with_bounds        
+        !> @brief   calculate the number of bytes needed to store this variable. Bounds are ignored.
+        generic, public :: byte_size => template buffer_byte_size
+        !> @brief   calculate the number of bytes needed to store this array with its bounds in the buffer
+        generic, public :: byte_size_with_bounds => template buffer_byte_size_with_bounds
     end type
 
     ! the C memcpy function is used to transfer data into an buffer array
@@ -60,6 +64,46 @@ contains
     end subroutine
 
 
+    template buffer_byte_size_with_bounds
+        replace :: D => (:); (:,:); (:,:,:); (:,:,:,:); (:,:,:,:,:)
+        replace :: ND => 1; 2; 3; 4; 5
+        replace, foreach(D,ND) :: T => numeric
+    contains
+        !> @brief       calculate the number of bytes needed to store this array with its bounds in the buffer
+        !> @param[in]   this    reference to the buffer object, automatically set by fortran
+        function buffer_byte_size_with_bounds(this, array) result(res)
+            class(buffer) :: this
+            T, dimension D :: array
+            integer (kind=C_size_t) :: res
+
+            ! the number of dimensions 
+            res = 4
+
+            ! the upper and lower bounds
+            res = res + ND * C_size_t * 2
+
+            ! the array itself
+            res = res + size(array) * storage_size(array) / 8_8
+        end function
+    end template
+
+
+    template buffer_byte_size
+        replace :: D => nil; ,dimension(:); ,dimension(:,:); ,dimension(:,:,:); ,dimension(:,:,:,:); ,dimension(:,:,:,:,:)
+        replace :: S => 1_8; size(array); size(array); size(array); size(array); size(array)
+        replace, foreach(D,S) :: T => numeric
+    contains
+        !> @brief       calculate the number of bytes needed to store this variable. Bounds are ignored.
+        !> @param[in]   this    reference to the buffer object, automatically set by fortran
+        function buffer_byte_size(this, array) result (res)
+            class(buffer) :: this
+            T D :: array
+            integer (kind=C_size_t) :: res
+            res = S * storage_size(array) / 8_8
+        end function
+    end template
+
+    
     template buffer_put
         replace :: D => nil; dimension(:),; dimension(:,:),; dimension(:,:,:),; dimension(:,:,:,:),; dimension(:,:,:,:,:),
         replace :: F => nil; (1); (1,1); (1,1,1); (1,1,1,1); (1,1,1,1,1)
