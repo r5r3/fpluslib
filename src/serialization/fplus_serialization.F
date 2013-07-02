@@ -1,4 +1,4 @@
-!> @brief   Function for the serialization of derived types
+!> @brief   Functions for the serialization of derived types
 module fplus_serialization
     use, intrinsic :: ISO_C_BINDING
     implicit none
