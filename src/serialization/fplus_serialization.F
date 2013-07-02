@@ -74,9 +74,7 @@ contains
         replace, foreach(D,ND) :: T => numeric
     contains
         !> @brief       calculate the number of bytes needed to store this array with its bounds in the buffer
-        !> @param[in]   this    reference to the buffer object, automatically set by fortran
-        function byte_size_with_bounds(this, array) result(res)
-            class(buffer) :: this
+        function byte_size_with_bounds(array) result(res)
             T, dimension D :: array
             integer (kind=C_size_t) :: res
 
@@ -98,9 +96,7 @@ contains
         replace, foreach(D,S) :: T => numeric
     contains
         !> @brief       calculate the number of bytes needed to store this variable. Bounds are ignored.
-        !> @param[in]   this    reference to the buffer object, automatically set by fortran
-        function byte_size(this, array) result (res)
-            class(buffer) :: this
+        function byte_size(array) result (res)
             T D :: array
             integer (kind=C_size_t) :: res
             res = S * storage_size(array) / 8_8
