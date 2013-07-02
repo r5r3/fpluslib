@@ -2,7 +2,7 @@ program test_serialization
 	use fplus_serialization
 	implicit none
 
-	! a buffer for 100 bytes
+	! a buffer for 36 bytes
 	type(buffer), allocatable :: buf
 
 	! an array to place into the buffer
@@ -12,7 +12,7 @@ program test_serialization
 	! an allocatable array for to place into the buffer
 	real, dimension(:), allocatable :: test_array_2
 
-	! initialize the buffer with 100 bytes
+	! initialize the buffer with 36 bytes
 	buf = new_buffer(36_8)
 
 	! write the test array to the buffer
@@ -60,9 +60,9 @@ program test_serialization
 
 	! calculate the size of different types
 	print*, ""
-	print*, "Size of integer:         		   ", buf%byte_size(300)
-	print*, "Size of integer (kind=8):		   ", buf%byte_size(300_8)
-	print*, "Size of test_array_2:    		   ", buf%byte_size(test_array_2)
-	print*, "Size of test_array_2 with bounds: ", buf%byte_size_with_bounds(test_array_2)
+	print*, "Size of integer:         		   ", byte_size(300)
+	print*, "Size of integer (kind=8):		   ", byte_size(300_8)
+	print*, "Size of test_array_2:    		   ", byte_size(test_array_2)
+	print*, "Size of test_array_2 with bounds: ", byte_size_with_bounds(test_array_2)
 
 end program
