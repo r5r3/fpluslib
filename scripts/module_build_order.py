@@ -48,7 +48,7 @@ if __name__ == '__main__':
     fileList = []
     for root, subFolders, files in os.walk(args.src):
         for file in files:
-            if not file.endswith("~") and not file.endswith(".inc"):
+            if not file.endswith("~") and not file.endswith(".inc") and not file.endswith(".h"):
                 fileList.append((root,file))
     
     # create the output folders if requested
