@@ -6,3 +6,4 @@ include
 doc/html
 config.log
 config.status
+Makefile
