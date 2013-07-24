@@ -1,21 +1,21 @@
 #some variables
 
 # the default extension for a dynamic library
-OS=@OS@
-DYLIBEXT=@DYLIBEXT@
+OS=Darwin
+DYLIBEXT=dylib
 ifeq ($(OS),Darwin)
-	DYLIBFLAGS=-shared -install_name $(shell pwd)/lib/libfplus.$(DYLIBEXT) @LIBS@ @LDFLAGS@ 
-	LDFLAGS=-Llib -lfplus @LIBS@ @LDFLAGS@ 
+	DYLIBFLAGS=-shared -install_name $(shell pwd)/lib/libfplus.$(DYLIBEXT) -ludunits2 -lcdi  -L/opt/local/lib -L/usr/local/lib /usr/local/lib/mo_cdi.o 
+	LDFLAGS=-Llib -lfplus -ludunits2 -lcdi  -L/opt/local/lib -L/usr/local/lib /usr/local/lib/mo_cdi.o 
 else
-	DYLIBFLAGS=-shared @LIBS@ @LDFLAGS@ 
-	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfplus @LIBS@ @LDFLAGS@ 
+	DYLIBFLAGS=-shared -ludunits2 -lcdi  -L/opt/local/lib -L/usr/local/lib /usr/local/lib/mo_cdi.o 
+	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfplus -ludunits2 -lcdi  -L/opt/local/lib -L/usr/local/lib /usr/local/lib/mo_cdi.o 
 endif
 
 # select a compiler
-FC=@FC@
-CC=@CC@
-FCFLAGS=@FCFLAGS@ @FC_MODINC@include @FC_MODOUT@include
-CCFLAGS=@CFLAGS@ 
+FC=gfortran-mp-4.8
+CC=gcc
+FCFLAGS= -I/opt/local/include/udunits2 -I/opt/local/include -ffree-line-length-none -fpic -I/usr/local/include -Iinclude -Jinclude
+CCFLAGS= -I/opt/local/include/udunits2 -I/opt/local/include -fpic 
 
 # create a list of all objects
 SRCOBJ:=$(shell scripts/module_build_order.py --src src --obj build)
