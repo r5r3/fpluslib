@@ -85,11 +85,11 @@ LIBCDI=
 	              	[
 	              		echo " ... use cdi in $with_cdi"
 	              		AC_SUBST([LIBCDI], [" -lcdi $with_cdi/lib/mo_cdi.o"])
-	              		AS_VAR_APPEND([LIBS], [$LIBCDI])
+	              		AS_VAR_APPEND([LIBS], ["$LIBCDI"])
 	   					AC_DEFINE([HAVE_LIBCDI], [1], [Define if you have libcdi])
 	              	],
 	              	[
-	              		AC_MSG_FAILURE(["--with-cdi was given, but test for cdi failed"])
+	              		AC_MSG_FAILURE([--with-cdi was given, but test for cdi failed])
 	              	])
             ]
           )
@@ -100,7 +100,7 @@ AC_LANG_POP([Fortran])
 AC_CHECK_LIB([udunits2], [ut_new_system], 
 	[], 
 	[
-		AC_MSG_FAILURE(["the udunits2 library is needed for the datetime module"])
+		AC_MSG_FAILURE([the udunits2 library is needed for the datetime module])
 	], 
 	["-lexpat"])
 
