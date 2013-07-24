@@ -583,7 +583,6 @@ PACKAGE_URL=''
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
-LIBCDI
 FC_MODINC
 ac_empty
 FC_MODOUT
@@ -3150,11 +3149,6 @@ fi
 echo "---------------------------------------------------------------"
 echo "Testing for external libraries"
 echo "---------------------------------------------------------------"
-ac_ext=${ac_fc_srcext-f}
-ac_compile='$FC -c $FCFLAGS $ac_fcflags_srcext conftest.$ac_ext >&5'
-ac_link='$FC -o conftest$ac_exeext $FCFLAGS $LDFLAGS $ac_fcflags_srcext conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_fc_compiler_gnu
-
 
 # cdi ----------------------------------------------------------------
 
@@ -3169,50 +3163,72 @@ else
 fi
 
 
-LIBCDI=
-        if test "x$with_cdi" != xno; then :
 
-            	echo "checking cdi support ... "
-	            cat > conftest.$ac_ext <<_ACEOF
-      program main
 
-	            		use mo_cdi
-	            		vlistID = vlistCreate()
+if test "x$with_cdi" != xno; then :
 
-      end
+    	echo "checking cdi support ... "
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for vlistCreate in -lcdi" >&5
+$as_echo_n "checking for vlistCreate in -lcdi... " >&6; }
+if ${ac_cv_lib_cdi_vlistCreate+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcdi
+		 $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vlistCreate ();
+int
+main ()
+{
+return vlistCreate ();
+  ;
+  return 0;
+}
 _ACEOF
-if ac_fn_fc_try_compile "$LINENO"; then :
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_cdi_vlistCreate=yes
+else
+  ac_cv_lib_cdi_vlistCreate=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_cdi_vlistCreate" >&5
+$as_echo "$ac_cv_lib_cdi_vlistCreate" >&6; }
+if test "x$ac_cv_lib_cdi_vlistCreate" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBCDI 1
+_ACEOF
 
-	              		echo " ... use cdi in $with_cdi"
-	              		LIBCDI=" -lcdi $with_cdi/lib/mo_cdi.o"
-
-	              		as_fn_append LIBS "$LIBCDI"
-
-$as_echo "#define HAVE_LIBCDI 1" >>confdefs.h
-
+  LIBS="-lcdi $LIBS"
 
 else
 
-	              		{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+				{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
 as_fn_error $? "--with-cdi was given, but test for cdi failed
 See \`config.log' for more details" "$LINENO" 5; }
 
 fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
 
 
 fi
 
-ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
+#AC_LANG_PUSH([Fortran])
+#AC_LANG_POP([Fortran])
 
 # udunits2
-
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ut_new_system in -ludunits2" >&5
 $as_echo_n "checking for ut_new_system in -ludunits2... " >&6; }
 if ${ac_cv_lib_udunits2_ut_new_system+:} false; then :

@@ -61,7 +61,6 @@ AS_VAR_IF([FC], [pgfortran],
 echo "---------------------------------------------------------------"
 echo "Testing for external libraries"
 echo "---------------------------------------------------------------"
-AC_LANG_PUSH([Fortran])
 
 # cdi ----------------------------------------------------------------
 AC_ARG_WITH([cdi],
@@ -73,28 +72,22 @@ AC_ARG_WITH([cdi],
             ],
             [with_cdi=no])
 
-LIBCDI=
-        AS_IF([test "x$with_cdi" != xno],
-            [
-            	echo "checking cdi support ... "
-	            AC_COMPILE_IFELSE(AC_LANG_PROGRAM([], 
-	            	[
-	            		use mo_cdi
-	            		vlistID = vlistCreate()
-	            	]),
-	              	[
-	              		echo " ... use cdi in $with_cdi"
-	              		AC_SUBST([LIBCDI], [" -lcdi $with_cdi/lib/mo_cdi.o"])
-	              		AS_VAR_APPEND([LIBS], ["$LIBCDI"])
-	   					AC_DEFINE([HAVE_LIBCDI], [1], [Define if you have libcdi])
-	              	],
-	              	[
-	              		AC_MSG_FAILURE([--with-cdi was given, but test for cdi failed])
-	              	])
-            ]
-          )
 
-AC_LANG_POP([Fortran])
+AS_IF([test "x$with_cdi" != xno],
+    [
+    	echo "checking cdi support ... "
+		AC_CHECK_LIB([cdi], [vlistCreate], 
+			[], 
+			[
+				AC_MSG_FAILURE([--with-cdi was given, but test for cdi failed])
+			], 
+			[]
+		)
+    ]
+)
+
+#AC_LANG_PUSH([Fortran])
+#AC_LANG_POP([Fortran])
 
 # udunits2
 AC_CHECK_LIB([udunits2], [ut_new_system], 
