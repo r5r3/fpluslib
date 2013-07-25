@@ -67,13 +67,18 @@ AC_ARG_WITH([cdi],
             [AS_HELP_STRING([--with-cdi],
               [support for climat data interface @<:@default=no@:>@])],
             [
-            	AS_VAR_APPEND([LDFLAGS], [" -L$with_cdi/lib"])
-				AS_VAR_IF([OS], [Linux], 
-					[
-						AS_VAR_APPEND([LDFLAGS], [" -Wl,-rpath=$with_cdi/lib"])
-					], 
-					[])            	
-            	AS_VAR_APPEND([FCFLAGS], [" -I$with_cdi/include"])            	
+            	AS_VAR_IF([with_cdi], [yes], 
+            		[],
+            		[
+		            	AS_VAR_APPEND([LDFLAGS], [" -L$with_cdi/lib"])
+						AS_VAR_IF([OS], [Linux], 
+							[
+								AS_VAR_APPEND([LDFLAGS], [" -Wl,-rpath=$with_cdi/lib"])
+							], 
+							[])            	
+		            	AS_VAR_APPEND([FCFLAGS], [" -I$with_cdi/include"])            	
+            		]
+            	)
             ],
             [with_cdi=no])
 
