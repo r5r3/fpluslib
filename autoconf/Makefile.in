@@ -76,7 +76,7 @@ build/%.f90: testsrc/%.F
 build/%.f90: src/%.F
 	scripts/generic.py $< -o $@
 
-build/%.f90: src/%.F90
+build/%.f90: src/%.F03
 	scripts/fplus < $< > $@
 
 build/%.o: src/%.c

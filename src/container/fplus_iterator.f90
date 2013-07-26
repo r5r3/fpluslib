@@ -3,7 +3,7 @@ module fplus_iterator
     implicit none
     public
 
-    !> @ brief  An abstract iterator class used by container classes to iterate over there values
+    !> @brief  An abstract iterator class used by container classes to iterate over there values
     type, abstract :: iterator
     contains
         procedure (generic_hasnext), deferred :: hasnext

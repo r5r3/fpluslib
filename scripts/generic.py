@@ -324,10 +324,12 @@ def workOnFile(infile, outfile):#
     parts[1] = part1
 
     # write the result to the output file
-    ofile = open(outfile, "w")
-    ofile.write(recombineSplits(parts))
-    ofile.close()
-    #print(recombineSplits(parts))
+    if outfile != None:
+        ofile = open(outfile, "w")
+        ofile.write(recombineSplits(parts))
+        ofile.close()
+    else:
+        print(recombineSplits(parts))
     #print(parts)
 
 def getOutputnameFromInputname(inname):
@@ -353,8 +355,11 @@ if __name__ == "__main__":
             exit(-1)
     else:
         args.out = []
-        for fn in args.infiles:
-            args.out.append(getOutputnameFromInputname(fn))
+        if len(args.infiles) == 1:
+            args.out.append(None)
+        else:
+            for fn in args.infiles:
+                args.out.append(getOutputnameFromInputname(fn))
 
     # loop over all input files
     for i in range(len(args.infiles)):
