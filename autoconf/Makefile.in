@@ -45,7 +45,7 @@ lib/libfplus.a: lib $(SRCOBJ)
 	ar rc $@ $(SRCOBJ)
 
 # create the documentation with doxygen
-doc/html: src/* src/*/* testsrc/* doc/Doxyfile
+doc/html: src/* src/*/* doc/Doxyfile
 	doxygen doc/Doxyfile
 
 # compile tests
