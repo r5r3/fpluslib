@@ -904,13 +904,13 @@ HTML_FILE_EXTENSION    = .html
 # have to redo this when upgrading to a newer version of doxygen or when
 # changing the value of configuration settings such as GENERATE_TREEVIEW!
 
-HTML_HEADER            =
+HTML_HEADER            = doc/TracHeader.html
 
 # The HTML_FOOTER tag can be used to specify a personal HTML footer for
 # each generated HTML page. If it is left blank doxygen will generate a
 # standard footer.
 
-HTML_FOOTER            =
+HTML_FOOTER            = doc/TracFooter.html
 
 # The HTML_STYLESHEET tag can be used to specify a user-defined cascading
 # style sheet that is used by each HTML page. It can be used to
@@ -1244,7 +1244,7 @@ SEARCHENGINE           = YES
 # enabled the indexing and searching needs to be provided by external tools.
 # See the manual for details.
 
-SERVER_BASED_SEARCH    = NO
+SERVER_BASED_SEARCH    = YES
 
 # When EXTERNAL_SEARCH is enabled doxygen will no longer generate the PHP
 # script for searching. Instead the search results are written to an XML file
