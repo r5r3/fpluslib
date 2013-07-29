@@ -114,6 +114,10 @@ module fplus_cdi_helper
         procedure, private :: varinfo_add_timesteps_rk8dx
         !> @brief   Create a copy with the same properties as this object, but not associated with a file
         procedure, private :: derived_clone => varinfo_derived_clone
+        !> @brief   Get the size of the underlying array in x-direction
+        procedure, public :: get_x_size => varinfo_get_x_size
+        !> @brief   Get the size of the underlying array in x-direction
+        procedure, public :: get_y_size => varinfo_get_y_size        
     end type
 
     !list of public functions
@@ -121,11 +125,13 @@ module fplus_cdi_helper
 
     ! interface to some function from the c api of CDI that are not already included in mo_cdi
     interface
+        !> @private
         subroutine streamDefCompType(streamID,compType) bind(c,name='streamDefCompType')
             import :: c_int
             integer(c_int), value :: streamID
             integer(c_int), value :: compType
         end subroutine
+        !> @private
         subroutine streamDefCompLevel(streamID,compLevel) bind(c,name='streamDefCompLevel')
             import :: c_int
             integer(c_int), value :: streamID
@@ -618,7 +624,7 @@ contains
 
                     ! we only support lonlat and gaussian grids
                     info%gridtype = gridInqType(gridID)
-                    if (info%gridtype /= GRID_LONLAT .and. info%gridtype /= GRID_GAUSSIAN) then
+                    if (info%gridtype /= GRID_LONLAT .and. info%gridtype /= GRID_GAUSSIAN .and. info%gridtype /= GRID_UNSTRUCTURED) then
                         call fplus_error_print("unsupported grid: " // trim(type_to_string(info%gridtype)), "new_fileinfo")
                     end if
 
@@ -732,6 +738,16 @@ contains
                     ptr%gridID = gridCreate(GRID_GENERIC, gridsize)
                     if (ptr%nlon > 0) call gridDefXsize(ptr%gridID, ptr%nlon)
                     if (ptr%nlat > 0) call gridDefYsize(ptr%gridID, ptr%nlat)
+                    if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
+                    if (allocated(ptr%coord_lon)) call gridDefYvals(ptr%gridID, ptr%coord_lat)
+                else if (ptr%gridtype == GRID_UNSTRUCTURED) then
+                    if (ptr%nlon /= ptr%nlat .or. ptr%nlon == 0) then
+                        call fplus_error_print("the size of the x and y coordinate of a unstructured grid has to match!", "fileinfo%fix_variable_definition")
+                    end if
+                    gridsize = ptr%nlon
+                    ptr%gridID = gridCreate(GRID_UNSTRUCTURED, gridsize)
+                    call gridDefXsize(ptr%gridID, ptr%nlon)
+                    call gridDefYsize(ptr%gridID, ptr%nlat)
                     if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
                     if (allocated(ptr%coord_lon)) call gridDefYvals(ptr%gridID, ptr%coord_lat)
                 else
@@ -920,16 +936,17 @@ contains
         !$FP D = {dimension(:,:)} {dimension(:,:,:)}
         !$FP D2 = 2 3
         !$FP ZLEVID = {} {,ind}
-        !$FP AL = {this%nlon, this%nlat} {this%nlon, this%nlat, this%nzval}
-        !$FP AL2 = {this%nlon, this%nlat} {this%nlon, this%nlat, size(levels)}
-        !$FP AL_PARENT = {this%parent%nlon, this%parent%nlat} {this%parent%nlon, this%parent%nlat, this%parent%nzval}
-        !$FP AL2_PARENT = {this%parent%nlon, this%parent%nlat} {this%parent%nlon, this%parent%nlat, size(levels)}
+        !$FP AL = {this%get_x_size(), this%get_y_size()} {this%get_x_size(), this%get_y_size(), this%nzval}
+        !$FP AL2 = {this%get_x_size(), this%get_y_size()} {this%get_x_size(), this%get_y_size(), size(levels)}
+        !$FP AL_PARENT = {this%parent%get_x_size(), this%parent%get_y_size()} {this%parent%get_x_size(), this%parent%get_y_size(), this%parent%nzval}
+        !$FP AL2_PARENT = {this%parent%get_x_size(), this%parent%get_y_size()} {this%parent%get_x_size(), this%parent%get_y_size(), size(levels)}
         !$FP PSUB3 = {} {,this%parent_subscripts(3,1):this%parent_subscripts(3,2)}
         !$FP PSUB32 = {} {, :}
-        !$FP SHC = {res_shape(1) /= this%nlon .or. res_shape(2) /= this%nlat} {res_shape(1) /= this%nlon .or. res_shape(2) /= this%nlat .or. res_shape(3) /= this%nzval}
-        !$FP SHC2 = {res_shape(1) /= this%nlon .or. res_shape(2) /= this%nlat} {res_shape(1) /= this%nlon .or. res_shape(2) /= this%nlat .or. res_shape(3) /= size(levels)}
+        !$FP SHC = {res_shape(1) /= this%get_x_size() .or. res_shape(2) /= this%get_y_size()} {res_shape(1) /= this%get_x_size() .or. res_shape(2) /= this%get_y_size() .or. res_shape(3) /= this%nzval}
+        !$FP SHC2 = {res_shape(1) /= this%get_x_size() .or. res_shape(2) /= this%get_y_size()} {res_shape(1) /= this%get_x_size() .or. res_shape(2) /= this%get_y_size() .or. res_shape(3) /= size(levels)}
     
-        !$FP do i = 1, 2 
+        !$FP do i = 1, 2
+        !> @public
         !> @brief       Load D2-d-field data for one time step from the input file
         !> @details     The timestep can be specified by its number, by its time in seconds since 1970, or by
         !>              a datetime object.
@@ -969,7 +986,7 @@ contains
             end if
 
             ! get the time step
-            if (present(tstep)) ind = tstep -1
+            if (present(tstep)) ind = tstep
             if (present(dt)) ind = valueindex(this%coord_time, dt%time_in_sec1970, 1, this%ntime, sorted=.true.)
             if (ind == fplus_fill_int) call fplus_error_print("stime not yet implemented", "varinfo%get_timestep_data")
 
@@ -1045,7 +1062,7 @@ contains
             end if
 
             ! move the stream to the timestep of interest
-            status = streamInqTimestep(streamID, ind)
+            status = streamInqTimestep(streamID, ind-1)
             if (status < 1) call fplus_error_print("no data for this time step", "varinfo%get_timestep_data")
 
             ! read the data
@@ -1065,7 +1082,16 @@ contains
         !$FP D = {dimension(:)} {dimension(:,:)} {dimension(:,:,:)}
 
         !$FP do i = 1, 3
-        !> @brief       2d interface for varinfo_set_timestep_data_intern
+        !> @public
+        !> @brief       Save the data for one time step to the output file.
+        !> @details     The timestep can be specified by its number, by its time in seconds since 1970, or by
+        !>              a datetime object. This subroutine is for ${i}-dimensional data.
+        !> @param[in]   this    reference to the varinfo object, automatically set by fortran
+        !> @param[out]  values  the array where the data is stored, the rank and shape has to match the information stored
+        !>                      in the varinfo object
+        !> @param[in]   tstep   the number of the time-step, first = 1, optional
+        !> @param[in]   stime   the time in seconds since 1970 for this time step, optional
+        !> @param[in]   dt      the time as a datetime object, optional
         subroutine varinfo_set_timestep_data(this, values, tstep, stime, dt)
             class(varinfo) :: this
             integer, intent(in), optional :: tstep
@@ -1074,10 +1100,29 @@ contains
             real (kind=8), ${D(i)} :: values
 
             ! local variables
-            integer, dimension(:), allocatable :: values_shape
+            integer, dimension(:), allocatable :: values_shape, values_shape_2
 
-            ! get the dimensions of the array
-            values_shape = shape(values)
+            ! the unstructured grid has a y-dimension that can be omitted
+            if (this%gridtype == GRID_UNSTRUCTURED) then
+                ! get the dimensions of the array
+                values_shape_2 = shape(values)
+                !$FP if (i == 1) then 
+                allocate(values_shape(2))
+                values_shape(1) = values_shape_2(1)    
+                !$FP end if
+                !$FP if (i == 2) then 
+                if (this%nzval > 1) then
+                    allocate(values_shape(3))
+                    values_shape(1) = values_shape_2(1)    
+                    values_shape(2) = 1    
+                    values_shape(3) = values_shape_2(2)
+                end if    
+                !$FP end if
+                !$FP if (i == 3) values_shape = values_shape_2
+            else
+                ! get the dimensions of the array
+                values_shape = shape(values)            
+            end if
 
             ! call the internal subroutine
             call this%varinfo_set_timestep_data_intern(values, ${i}, values_shape, tstep, stime, dt)
@@ -1085,15 +1130,7 @@ contains
         !$FP end do
     !$FP end template
 
-    !> @brief       Load the data for one time step from the input file, 2d field (surface, or one level)
-    !> @details     The timestep can be specified by its number, by its time in seconds since 1970, or by
-    !>              a datetime object.
-    !> @param[in]   this    reference to the varinfo object, automatically set by fortran
-    !> @param[out]  values  the array where the data is stored, the rank and shape has to match the information stored
-    !>                      in the varinfo object
-    !> @param[in]   tstep   the number of the time-step, first = 1, optional
-    !> @param[in]   stime   the time in seconds since 1970 for this time step, optional
-    !> @param[in]   dt      the time as a datetime object, optional
+    !> @brief       Save the data for one time step to the output file. This subroutine is called internally from varinfo_set_timestep_data
     subroutine varinfo_set_timestep_data_intern(this, values, values_rank, values_shape, tstep, stime, dt)
         class(varinfo) :: this
         integer, intent(in), optional :: tstep
@@ -1115,20 +1152,20 @@ contains
 
         ! how many dimensions do we have?
         dim_count = 0
-        if (this%nlon > 1) dim_count = 1
-        if (this%nlat > 1) dim_count = dim_count + 1
+        if (this%get_x_size() > 1) dim_count = 1
+        if (this%get_y_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) dim_count = dim_count + 1
         if (this%nzval > 1) dim_count = dim_count + 1
         if (dim_count /= values_rank) call fplus_error_print("wrong number of dimension!", "varinfo%set_timestep_data")
 
         ! create an array with the nominal shape if the variable
         allocate(nominal_shape(dim_count))
         ind = 1
-        if (this%nlon > 1) then
-            nominal_shape(ind) = this%nlon
+        if (this%get_x_size() > 1) then
+            nominal_shape(ind) = this%get_x_size()
             ind = ind +1
         end if
-        if (this%nlat > 1) then
-            nominal_shape(ind) = this%nlat
+        if (this%get_y_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) then
+            nominal_shape(ind) = this%get_y_size()
             ind = ind +1
         end if
         if (this%nzval > 1) then
@@ -1376,6 +1413,36 @@ contains
         res%code            = this%code
         res%zaxistype       = this%zaxistype
         res%gridtype        = this%gridtype
+    end function
+
+    !> @public
+    !> @brief       Get the size of the underlying array in x-direction
+    !> @param[in]   this        reference to the varinfo object, automatically set by fortran
+    !> @return      for most grid types, nlon is returned.
+    function varinfo_get_x_size(this) result (res)
+        class(varinfo) :: this
+        integer :: res
+        if (this%gridtype == GRID_LONLAT .or. this%gridtype == GRID_UNSTRUCTURED .or. this%gridtype == GRID_GAUSSIAN) then
+            res = this%nlon
+        else
+            call fplus_error_print("unsupported grid: " // trim(type_to_string(this%gridtype)), "get_x_size")
+        end if
+    end function
+
+    !> @public
+    !> @brief       Get the size of the underlying array in y-direction
+    !> @param[in]   this        reference to the varinfo object, automatically set by fortran
+    !> @return      for most grid types, nlat is returned. 
+    function varinfo_get_y_size(this) result (res)
+        class(varinfo) :: this
+        integer :: res
+        if (this%gridtype == GRID_LONLAT .or. this%gridtype == GRID_GAUSSIAN) then
+            res = this%nlat
+        else if (this%gridtype == GRID_UNSTRUCTURED) then
+            res = 1
+        else
+            call fplus_error_print("unsupported grid: " // trim(type_to_string(this%gridtype)), "get_y_size")
+        end if
     end function
 
 end module fplus_cdi_helper
