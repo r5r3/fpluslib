@@ -202,10 +202,12 @@ contains
             if (new_index == this%nelements+1) then
                 this%lastElement%nextElement => new_element(value, this%lastElement, null(), copyValue)
                 this%lastElement => this%lastElement%nextElement
+                this%lastElement%nextElement => null()
             ! 2. the element will be the new first element
             else if (new_index == 1) then
                 this%firstElement%prevElement => new_element(value, null(), this%firstElement, copyValue)
                 this%firstElement => this%firstElement%prevElement
+                this%firstElement%prevElement => null()
                 ! change the last accessed element in get
                 if (this%last_index_in_get /= 0) this%last_index_in_get = this%last_index_in_get + 1
             ! 3. the element will be somewhere in between
@@ -686,7 +688,7 @@ contains
     ! a constructor for the element
     function new_element(value, prev, next, copy)
         class(*), target :: value
-        class(element), pointer :: next, prev
+        class(element), pointer :: prev, next
         class(element), pointer :: new_element
         logical, optional :: copy
 
