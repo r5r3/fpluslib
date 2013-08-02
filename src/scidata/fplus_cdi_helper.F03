@@ -90,6 +90,8 @@ module fplus_cdi_helper
         procedure, public :: set_name => varinfo_set_name
         !> @brief   Set the grib code for this variable
         procedure, public :: set_code => varinfo_set_code
+        !> @brief   Set the grid type of this variable, that will reset the coordinate arrays
+        procedure, public :: set_gridtype => varinfo_set_gridtype
         !> @brief   Set a new zaxis
         !$FP generic, public :: set_zaxis => varinfo_set_zaxis
         !> @brief   Define a new time coordinate for this variable
@@ -858,6 +860,24 @@ contains
         this%code = new_code
     end subroutine
 
+    !> @public
+    !> @brief       Set the grid type of this variable, that will reset the coordinate arrays
+    !> @param[in]   new_type    the cdi grid type parameter. Allowed are GRID_GAUSSIAN, GRID_LONLAT, and GRID_UNSTRUCTURED
+    subroutine varinfo_set_gridtype(this, new_type)
+        class(varinfo) :: this
+        integer, intent(in) :: new_type
+        ! is the gridtype valid?
+        if (new_type /= GRID_UNSTRUCTURED .and. new_type /= GRID_LONLAT .and. new_type /= GRID_GAUSSIAN) then
+            call fplus_error_print("invalid grid type: " // type_to_string(new_type), "varinfo%set_gridtype", FPLUS_ERR)
+        end if
+        ! ok, the type is valid. remove the x- and y-coordinates
+        this%gridtype = new_type
+        if (allocated(this%coord_lon)) deallocate(this%coord_lon)
+        if (allocated(this%coord_lat)) deallocate(this%coord_lat)
+        this%nlon = -1
+        this%nlat = -1
+    end subroutine
+
     !$FP template varinfo_set_zaxis
         !$FP T = {real(kind=8)} {real(kind=8), dimension(:)}
         !$FP COORD_SIZE = 1 {size(coord_z)}
@@ -1101,6 +1121,7 @@ contains
 
             ! local variables
             integer, dimension(:), allocatable :: values_shape, values_shape_2
+            integer :: values_rank
 
             ! the unstructured grid has a y-dimension that can be omitted
             if (this%gridtype == GRID_UNSTRUCTURED) then
@@ -1108,7 +1129,9 @@ contains
                 values_shape_2 = shape(values)
                 !$FP if (i == 1) then 
                 allocate(values_shape(2))
-                values_shape(1) = values_shape_2(1)    
+                values_shape(1) = values_shape_2(1)
+                values_shape(2) = 1
+                values_rank = 2
                 !$FP end if
                 !$FP if (i == 2) then 
                 if (this%nzval > 1) then
@@ -1116,16 +1139,20 @@ contains
                     values_shape(1) = values_shape_2(1)    
                     values_shape(2) = 1    
                     values_shape(3) = values_shape_2(2)
+                    values_rank = 3
                 end if    
                 !$FP end if
-                !$FP if (i == 3) values_shape = values_shape_2
+                !$FP if (i == 3) then 
+                values_shape = values_shape_2
+                values_rank = 3
+                !$FP end if
             else
                 ! get the dimensions of the array
                 values_shape = shape(values)            
             end if
 
             ! call the internal subroutine
-            call this%varinfo_set_timestep_data_intern(values, ${i}, values_shape, tstep, stime, dt)
+            call this%varinfo_set_timestep_data_intern(values, values_rank, values_shape, tstep, stime, dt)
         end subroutine
         !$FP end do
     !$FP end template

@@ -37,6 +37,8 @@ module fplus_list
         procedure, public :: add => list_add
         !> @brief   Returns the value at the specified position in this list.
         procedure, public :: get => list_get
+        !> @brief   Subroutine to read intrinsic types from a list element
+        !$FP generic, public :: get_intrinsic => list_get_intrinsic
         !> @brief   Returns the element at the specified position in this list, internaly used only
         procedure, private :: get_element => list_get_element
         !> @brief   Remove an element at the specified position
@@ -79,6 +81,8 @@ module fplus_list
     interface assignment (=)
         module procedure list_to_realk8_array
         module procedure list_to_realk4_array
+        module procedure list_to_intk8_array
+        module procedure list_to_intk4_array
     end interface
 
 ! implementation of the procedures
@@ -248,6 +252,40 @@ contains
         res => null()
         if (associated(nextele)) res => nextele%value
     end function
+
+    !$FP template list_get_intrinsic
+        !$FP do T = {real (kind=4)} {real (kind=8)} {integer (kind=4)} {integer (kind=8)}
+            !> @public
+            !> @brief       Subroutine to read ${T} from a list element
+            !> @param[in]   this    reference to the map object, automatically set by fortran
+            !> @param[in]   ind     the index of the searched element.
+            !> @param[out]  value   the value of this list element 
+            subroutine list_get_intrinsic(this, ind, value)
+                class(list) :: this
+                integer :: ind
+                ${T} :: value
+
+                !local variables
+                class(*), pointer :: ivalue
+
+                ! get the value as class(*) pointer
+                ivalue => this%get(ind)
+
+                ! anything found
+                if (.not.associated(ivalue)) then
+                    call fplus_error_print("no value stored at " // type_to_string(ind) // " in list.", "list%get_intrinsic", FPLUS_ERR)
+                end if
+
+                ! convert to the type of value
+                select type (ivalue)
+                    type is (${T})
+                        value = ivalue
+                    class default
+                        call fplus_error_print("wrong datatype", "list%get_intrinsic", FPLUS_ERR)
+                end select
+            end subroutine
+        !$FP end do
+    !$FP end template
 
     !> @brief       Returns the element at the specified position in this list.
     !> @param[in]   this    reference to the map object, automatically set by fortran
