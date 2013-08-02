@@ -27,6 +27,8 @@ module fplus_datetime
         procedure, public :: get => datetime_get
         !> @brief   set one single part of the date
         procedure, public :: get_field => datetime_get_field
+        !> @brief   get the number of days in the given year
+        procedure, public :: ndays_in_year => datetime_ndays_in_year
     end type
 
     ! make the constructor public
@@ -393,6 +395,23 @@ contains
         end select
     end function
 
+    !> @public
+    !> @brief   get the number of days in the given year
+    function datetime_ndays_in_year(this) result (res)
+        class(datetime) :: this
+        integer :: res
+
+        ! local variables
+        type(datetime) :: dt1, dt2
+        integer :: year
+        real(kind=8) :: diff
+
+        call this%get(year=year)
+        dt1 = new_datetime(year=year, month=1, day=1)
+        dt2 = new_datetime(year=year, month=12, day=31)
+        diff = dt2%time_in_sec1970 - dt1%time_in_sec1970
+        res = nint(diff/86400)+1
+    end function
 
     ! procedure that don't belong to a type -----------------------------------
 
@@ -492,6 +511,5 @@ contains
                 call fplus_error_print("wrong type in assignment to datetime object, only real (kind=8) and datetime are supported", "datetime = class(*)", FPLUS_ERR)
         end select
     end subroutine
-    
-    
+
 end module

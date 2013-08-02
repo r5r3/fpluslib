@@ -11,7 +11,7 @@ contains
         replace :: AL => , allocatable ; nil
     contains
 
-        !>@ brief   swap two values without a mask
+        !> @brief   swap two values without a mask
         subroutine swap(a, b)
             T, intent(inout) :: a
             T, intent(inout) :: b
@@ -21,7 +21,7 @@ contains
             b = temp
         end subroutine
 
-        !>@ brief   swap two values with a mask
+        !> @brief   swap two values with a mask
         subroutine swap_mask(a, b, mask)
             T, intent(inout) :: a
             T, intent(inout) :: b

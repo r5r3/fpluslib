@@ -3155,13 +3155,20 @@ echo "---------------------------------------------------------------"
 # Check whether --with-cdi was given.
 if test "${with_cdi+set}" = set; then :
   withval=$with_cdi;
-            	as_fn_append LDFLAGS " -L$with_cdi/lib"
-				if test "x$OS" = xLinux; then :
+            	if test "x$with_cdi" = xyes; then :
 
-						as_fn_append LDFLAGS " -Wl,-rpath=$with_cdi/lib"
+else
+
+		            	as_fn_append LDFLAGS " -L$with_cdi/lib"
+						if test "x$OS" = xLinux; then :
+
+								as_fn_append LDFLAGS " -Wl,-rpath=$with_cdi/lib"
 
 fi
-            	as_fn_append FCFLAGS " -I$with_cdi/include"
+		            	as_fn_append FCFLAGS " -I$with_cdi/include"
+
+
+fi
 
 else
   with_cdi=no

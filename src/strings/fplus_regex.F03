@@ -69,7 +69,7 @@ module fplus_regex
         character (len=1000), private :: pattern
         logical :: flag_REG_EXTENDED, flag_REG_ICASE, flag_REG_NOSUB, flag_REG_NEWLINE
     contains
-        !> @brief   Returns .true. if this object contains a vaild regex program
+        !> @brief   Returns .true. if this object contains a valid regex program
         procedure, public :: is_valid => regex_is_valid
         !> @brief   Returns the error code of the last function call
         procedure, public :: last_error => regex_last_error
@@ -95,6 +95,9 @@ module fplus_regex
         !>          This variable is only set, if the length of the match is <= 100.
         !> @todo    change type to len=:
         character (len=100) :: string
+    contains
+        !> @brief   get a numeric representation of the matched string
+        !$FP generic, public :: get_numeric => match_get_numeric
     end type
 
     ! make the constructor public
@@ -252,7 +255,7 @@ contains
         integer(kind=C_size_t) :: str_size, i, nmatch
         integer(kind=C_size_t), dimension(:), allocatable :: beginnings, endings
 
-        ! allocate an arry for the result, it has to have the same size as the
+        ! allocate an array for the result, it has to have the same size as the
         ! length of the string
         str_size = len_trim(string) + 1
         allocate(beginnings(str_size))
@@ -275,10 +278,35 @@ contains
     end function 
 
     !> @public
-    !> @brief       release all internaly used memory
+    !> @brief       release all internally used memory
     !> @param[in]   this    reference to the regex object, automatically set by fortran
     subroutine regex_release(this)
         class(regex) :: this
         if (this%initialized) call C_regfree(this%prog)
     end subroutine
+
+    !$FP template match_get_numeric
+        !$FP T = {real (kind=4)} {real (kind=8)} {integer (kind=4)} {integer (kind=8)}
+        !$FP F = {"(F)"} {"(F)"} {"(I)"} {"(I)"}
+        !$FP do i = 1, 4
+            !> @brief       get a numeric representation of the matched string
+            !> @param[in]   this    reference to the match object, automatically set by fortran
+            !> @param[out]  value   the ${T} representation of the matched string. 
+            subroutine match_get_numeric(this, value)
+                class(match) :: this
+                ${T(i)}, intent(out) :: value
+
+                ! local variables
+                integer :: i
+                character (len=100) :: str
+                ! find and replace commas
+                str = this%string
+                do i = 1, len_trim(str)
+                    if (str(i:i) == ",") str(i:i) = "."
+                end do
+                ! read the value
+                read (str, *) value
+            end subroutine
+        !$FP end do
+    !$FP end template
 end module

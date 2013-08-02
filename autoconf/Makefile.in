@@ -45,7 +45,7 @@ lib/libfplus.a: lib $(SRCOBJ)
 	ar rc $@ $(SRCOBJ)
 
 # create the documentation with doxygen
-doc/html: src/* src/*/* testsrc/* doc/Doxyfile
+doc/html: src/* src/*/* doc/Doxyfile
 	doxygen doc/Doxyfile
 
 # compile tests
@@ -76,7 +76,7 @@ build/%.f90: testsrc/%.F
 build/%.f90: src/%.F
 	scripts/generic.py $< -o $@
 
-build/%.f90: src/%.F90
+build/%.f90: src/%.F03
 	scripts/fplus < $< > $@
 
 build/%.o: src/%.c
