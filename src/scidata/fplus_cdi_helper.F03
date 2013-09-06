@@ -1140,6 +1140,9 @@ contains
                     values_shape(2) = 1    
                     values_shape(3) = values_shape_2(2)
                     values_rank = 3
+                else
+                    values_shape = values_shape_2
+                    values_rank = 2
                 end if    
                 !$FP end if
                 !$FP if (i == 3) then 
@@ -1150,7 +1153,6 @@ contains
                 ! get the dimensions of the array
                 values_shape = shape(values)            
             end if
-
             ! call the internal subroutine
             call this%varinfo_set_timestep_data_intern(values, values_rank, values_shape, tstep, stime, dt)
         end subroutine
