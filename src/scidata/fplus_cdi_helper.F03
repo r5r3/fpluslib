@@ -85,6 +85,8 @@ module fplus_cdi_helper
         integer, dimension(:,:), allocatable :: parent_subscripts
         ! used to indicate that a derived variable is rotated in longitude direction
         integer :: rotated_by_npoints = 0
+        ! is this variable constant in time? 
+        logical :: is_constant = .false.
     contains
         !> @brief   Set the grib code for this variable
         procedure, public :: set_name => varinfo_set_name
@@ -98,12 +100,16 @@ module fplus_cdi_helper
         generic, public :: set_coord_time => varinfo_set_coord_time_real8, varinfo_set_coord_time_datetime_list
         procedure, private :: varinfo_set_coord_time_real8
         procedure, private :: varinfo_set_coord_time_datetime_list
+        !> @brief   Has this variable multiplie time steps or is it a constant field like surface elevation?
+        procedure, public :: set_constant => varinfo_set_constant
         !> @brief   The the index of a given level in the z-coordinate
         procedure, public :: get_index_of_level => varinfo_get_index_of_level
         !> @brief   Load the data for one time step from the input file, 2d or 3d field
         !$FP generic, public :: get_timestep_data => varinfo_get_timestep_data
         !> @brief   Save the data for one time step to the output file, 2d or 3d field
         !$FP generic, public :: set_timestep_data => varinfo_set_timestep_data
+        !> @brief   Save the data for a constant 2d or 3d field to the output file
+        !$FP generic, public :: set_constant_data => varinfo_set_constant_data
         procedure, private :: varinfo_set_timestep_data_intern
         ! precedures for the object type
         procedure, public :: to_string => varinfo_to_string
@@ -767,8 +773,13 @@ contains
 
             ! define the variable if needed
             if (ptr%varID == -1) then
+                !call cdiDebug(2)
                 ! create a new variable
-                ptr%varID = vlistDefVar(this%vlistID, ptr%gridID, ptr%zaxisID, TIME_VARIABLE)
+                if (ptr%is_constant .eqv. .false.) then
+                    ptr%varID = vlistDefVar(this%vlistID, ptr%gridID, ptr%zaxisID, 1) !TSTEP_INSTANT
+                else
+                    ptr%varID = vlistDefVar(this%vlistID, ptr%gridID, ptr%zaxisID, 0) !TSTEP_CONSTANT
+                end if
                 ! define the name
                 if (len_trim(ptr%name) == 0 .and. ptr%code > 0) ptr%name = "var" // type_to_string(ptr%code)
                 if (len_trim(ptr%name) == 0 .and. ptr%code <= 0) ptr%name = "var" // type_to_string(ptr%varID)
@@ -906,6 +917,16 @@ contains
         end subroutine
         !$FP end do
     !$FP end template
+
+    !> @public
+    !> @brief       Has this variable multiplie time steps or is it a constant field like surface elevation?
+    !> @parma[in]   this            reference to the varinfo object, automatically set by fortran
+    !> @parma[in]   is_constant     .true. = no time steps, .false. = multiple time steps
+    subroutine varinfo_set_constant(this, is_constant)
+        class(varinfo) :: this
+        logical, intent(in) :: is_constant
+        this%is_constant = is_constant
+    end subroutine
 
     !> @public
     !> @brief       Define a new time coordinate for this variable
@@ -1098,6 +1119,26 @@ contains
         !$FP end do
     !$FP end template
 
+    !$FP template varinfo_set_constant_data
+        !$FP D = {dimension(:)} {dimension(:,:)} {dimension(:,:,:)}
+
+        !$FP do i = 1, 3
+        !> @public
+        !> @brief       Save the data for a constant 2d or 3d field to the output file. 
+        !> @details     You have to write the constant fields at last (unsure why...)
+        !> @param[in]   this    reference to the varinfo object, automatically set by fortran
+        !> @param[out]  values  the array where the data is stored, the rank and shape has to match the information stored
+        !>                      in the varinfo object
+        subroutine varinfo_set_constant_data(this, values)
+            class(varinfo) :: this
+            real (kind=8), ${D(i)} :: values
+
+            ! call the set_timestep_data subroutine to write the data
+            call this%set_timestep_data(values, tstep=0)
+        end subroutine
+        !$FP end do
+    !$FP end template
+
     !$FP template varinfo_set_timestep_data
         !$FP D = {dimension(:)} {dimension(:,:)} {dimension(:,:,:)}
 
@@ -1217,7 +1258,7 @@ contains
         end if!
 
         ! get the time step
-        if (present(tstep)) then
+        if (present(tstep) .and. .not. this%is_constant) then
             ! check if we already have a time coordinate and if the step is present
             if (.not.allocated(this%coord_time)) call fplus_error_print("tstep parameter used but coord_time not allocated!", "varinfo%set_timestep_data")
             if (tstep > this%ntime) call fplus_error_print("tstep parameter used that is larger than ntime!", "varinfo%set_timestep_data")
@@ -1235,24 +1276,26 @@ contains
             call this%add_timesteps(dtnew%time_in_sec1970, nindex=ind)
             ind = ind -1
         end if
-        if (ind == -1) call fplus_error_print("problem with time step definition", "varinfo%set_timestep_data")
+        if (ind == -1 .and. .not. this%is_constant) call fplus_error_print("problem with time step definition", "varinfo%set_timestep_data")
         if (this%finfo%last_time_step == -1 .and. ind > 0) call fplus_error_print("the first time step has be 0!", "varinfo%set_timestep_data")
         
         ! check is this time step is already defined
-        if (this%finfo%last_time_step >= ind) then
-            ! it is not possible to write to an finished timestep
-            if (this%finfo%last_time_step /= ind) then
-                call fplus_error_print("It is not possible to write to an already finished time step!", "varinfo%set_timestep_date", FPLUS_WARN)
-                call fplus_error_print("The data will be written for the current time step!", "varinf%set_timestep_date", FPLUS_WARN)
+        if (.not. this%is_constant) then
+            if (this%finfo%last_time_step >= ind) then
+                ! it is not possible to write to an finished timestep
+                if (this%finfo%last_time_step /= ind) then
+                    call fplus_error_print("It is not possible to write to an already finished time step!", "varinfo%set_timestep_date", FPLUS_WARN)
+                    call fplus_error_print("The data will be written for the current time step!", "varinf%set_timestep_date", FPLUS_WARN)
+                end if
+            else
+                ! define the timestep
+                dtnew = new_datetime(stime=this%coord_time(ind+1))
+                call dtnew%get(idate=idate, itime=itime)
+                call taxisDefVdate(this%finfo%taxisID, idate)
+                call taxisDefVtime(this%finfo%taxisID, itime)
+                status = streamDefTimestep(this%finfo%streamID, ind)
+                this%finfo%last_time_step = ind
             end if
-        else
-            ! define the timestep
-            dtnew = new_datetime(stime=this%coord_time(ind+1))
-            call dtnew%get(idate=idate, itime=itime)
-            call taxisDefVdate(this%finfo%taxisID, idate)
-            call taxisDefVtime(this%finfo%taxisID, itime)
-            status = streamDefTimestep(this%finfo%streamID, ind)
-            this%finfo%last_time_step = ind
         end if
 
         ! write the data
@@ -1442,6 +1485,7 @@ contains
         res%code            = this%code
         res%zaxistype       = this%zaxistype
         res%gridtype        = this%gridtype
+        res%is_constant     = this%is_constant
     end function
 
     !> @public
