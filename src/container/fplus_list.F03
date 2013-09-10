@@ -39,6 +39,8 @@ module fplus_list
         procedure, public :: get => list_get
         !> @brief   Subroutine to read intrinsic types from a list element
         !$FP generic, public :: get_intrinsic => list_get_intrinsic
+        !> @brief   Function to find the first occurence of a value within the list
+        !$FP generic, public :: get_position => list_get_position
         !> @brief   Returns the element at the specified position in this list, internaly used only
         procedure, private :: get_element => list_get_element
         !> @brief   Remove an element at the specified position
@@ -286,6 +288,48 @@ contains
                         call fplus_error_print("wrong datatype", "list%get_intrinsic", FPLUS_ERR)
                 end select
             end subroutine
+        !$FP end do
+    !$FP end template
+
+    !$FP template list_get_position
+        !$FP do T = {real (kind=4)} {real (kind=8)} {integer (kind=4)} {integer (kind=8)}
+            !> @public
+            !> @brief       Function to find the first occurence of a ${T} in the list
+            !> @param[in]   this    reference to the list object, automatically set by fortran
+            !> @param[in]   value   the value to search for
+            !> @result      -1 if nothing was found, otherwise the position of the first occurence
+            function list_get_position(this, value) result (res)
+                class(list) :: this
+                ${T}, intent(in) :: value
+                integer :: res
+
+                !local variables
+                integer :: index
+                ${T} :: lvalue
+                class(*), pointer :: ivalue
+
+                ! loop over all values
+                res = -1
+                do index = 1, this%length()
+                    ! get the value as class(*) pointer
+                    ivalue => this%get(index)
+
+                    ! anything found
+                    if (.not.associated(ivalue)) then
+                        call fplus_error_print("no value stored at " // type_to_string(index) // " in list.", "list%get_position", FPLUS_ERR)
+                    end if
+
+                    ! convert to the type of value
+                    select type (ivalue)
+                        type is (${T})
+                            lvalue = ivalue
+                        if (lvalue == value) then
+                            res = index
+                            return
+                        end if
+                    end select
+                end do
+            end function
         !$FP end do
     !$FP end template
 

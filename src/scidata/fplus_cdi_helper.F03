@@ -74,6 +74,7 @@ module fplus_cdi_helper
         integer, private :: varID = -1
         integer, private :: zaxisID = -1
         integer, private :: gridID = -1
+        real (kind=8), private :: fill_value = fplus_fill_realk8
         ! a pointer to the corresponding fileinfo object, only set if the variable belongs to one file only
         class(fileinfo), pointer, private :: finfo => null()
         ! a list of included variables for a merged variable
@@ -94,6 +95,8 @@ module fplus_cdi_helper
         procedure, public :: set_code => varinfo_set_code
         !> @brief   Set the grid type of this variable, that will reset the coordinate arrays
         procedure, public :: set_gridtype => varinfo_set_gridtype
+        !> @brief   Set the fill value for this variable
+        procedure, public :: set_fill_value => varinfo_set_fill_value
         !> @brief   Set a new zaxis
         !$FP generic, public :: set_zaxis => varinfo_set_zaxis
         !> @brief   Define a new time coordinate for this variable
@@ -151,6 +154,11 @@ module fplus_cdi_helper
     interface new_datapool
         module procedure new_datapool_1file, new_datapool_nfiles
     end interface
+
+    ! a global list of created resources (grids, zaxis, etc.)
+    !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
+    class(list), allocatable :: ${lst}
+    !$FP end do
 contains
 
     ! procedures for the datapool object ==========================================================
@@ -204,6 +212,11 @@ contains
             ! put the fileinfo into the list
             call res%files%add(new_fileinfo(infiles(i), res%status))
         end do
+
+        ! create lists to track cdi resources
+        !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
+        if (.not. allocated(${lst})) allocate(${lst})
+        !$FP end do
     end function
 
     !> @brief       Get a pointer to the variable information for a given code, name, or standard_name and z-axsis.
@@ -478,7 +491,7 @@ contains
         class(*), pointer :: temp
         integer :: status
         character (len=100) :: errmsg
-        
+
         ! loop over all files in this pool
         iter = this%files%get_iterator()
         do while (iter%hasnext())
@@ -617,6 +630,7 @@ contains
                     call ctrim(info%units)
                     call vlistInqVarStdname(res%vlistID, varID, info%standard_name)
                     call ctrim(info%standard_name)
+                    info%fill_value = vlistInqVarMissval(res%vlistID, varID)
 
                     ! add the id of the variable
                     info%varID = varID
@@ -709,18 +723,21 @@ contains
 
         ! local variables
         type(listiterator), allocatable :: iter
-        class(varinfo), pointer :: ptr
+        class(varinfo), pointer :: ptr, ptr2
         class(*), pointer :: temp
         integer :: gridsize
+        integer :: i
 
         ! leave this subroutine directly if the variable definition is already fixed
         if (this%fixed) return
 
         ! Create a variable list
         this%vlistID = vlistCreate()
+        call list_vlistID%add(this%vlistID, copy=.true.)
 
         ! create a time axis
         this%taxisID = taxisCreate(TAXIS_ABSOLUTE)
+        call list_taxisID%add(this%taxisID, copy=.true.)
         call vlistDefTaxis(this%vlistID, this%taxisID)
 
         ! loop over all variables in this file
@@ -735,6 +752,7 @@ contains
                     call fplus_error_print("the grid type has not yet been defined", "fileinfo%fix_variable_definition")
                 else if (ptr%gridtype == GRID_LONLAT .or. ptr%gridtype == GRID_GAUSSIAN) then
                     ptr%gridID = gridCreate(GRID_LONLAT, ptr%nlon*ptr%nlat)
+                    call list_gridID%add(ptr%gridID, copy=.true.)
                     call gridDefXsize(ptr%gridID, ptr%nlon)
                     call gridDefYsize(ptr%gridID, ptr%nlat)
                     if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
@@ -744,6 +762,7 @@ contains
                     if (ptr%nlon > 0) gridsize = gridsize * ptr%nlon
                     if (ptr%nlat > 0) gridsize = gridsize * ptr%nlat                        
                     ptr%gridID = gridCreate(GRID_GENERIC, gridsize)
+                    call list_gridID%add(ptr%gridID, copy=.true.)
                     if (ptr%nlon > 0) call gridDefXsize(ptr%gridID, ptr%nlon)
                     if (ptr%nlat > 0) call gridDefYsize(ptr%gridID, ptr%nlat)
                     if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
@@ -754,6 +773,7 @@ contains
                     end if
                     gridsize = ptr%nlon
                     ptr%gridID = gridCreate(GRID_UNSTRUCTURED, gridsize)
+                    call list_gridID%add(ptr%gridID, copy=.true.)
                     call gridDefXsize(ptr%gridID, ptr%nlon)
                     call gridDefYsize(ptr%gridID, ptr%nlat)
                     if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
@@ -767,8 +787,22 @@ contains
             if (ptr%zaxisID == -1) then
                 if (ptr%zaxistype == -1) call fplus_error_print("zaxistype not set!", "fileinfo%fix_variable_definition")
                 ptr%zaxisID = zaxisCreate(ptr%zaxistype, ptr%nzval)
+                call list_zaxisID%add(ptr%zaxisID, copy=.true.)
                 if (size(ptr%coord_z) /= ptr%nzval) call fplus_error_print("size of zaxis coordinate array and nzval don't fit together", "fileinfo%fix_variable_definition")
                 call zaxisDefLevels(ptr%zaxisID, ptr%coord_z)
+                ! are there other variables with the same zaxis?
+                do i = 1, this%variables%length()
+                    temp => this%variables%get(i)
+                    ptr2 => to_varinfo(temp)
+                    if (ptr2%zaxisID == -1 &
+                        .and. ptr2%zaxistype == ptr%zaxistype &
+                        .and. allocated(ptr2%coord_z) &
+                        .and. allocated(ptr%coord_z) &
+                        .and. size(ptr2%coord_z) == size(ptr%coord_z) & 
+                        .and. all(ptr2%coord_z == ptr%coord_z)) then
+                        ptr2%zaxisID = ptr%zaxisID
+                    end if
+                end do
             end if
 
             ! define the variable if needed
@@ -777,8 +811,10 @@ contains
                 ! create a new variable
                 if (ptr%is_constant .eqv. .false.) then
                     ptr%varID = vlistDefVar(this%vlistID, ptr%gridID, ptr%zaxisID, 1) !TSTEP_INSTANT
+                    call list_varID%add(ptr%varID, copy=.true.)
                 else
                     ptr%varID = vlistDefVar(this%vlistID, ptr%gridID, ptr%zaxisID, 0) !TSTEP_CONSTANT
+                    call list_varID%add(ptr%varID, copy=.true.)
                 end if
                 ! define the name
                 if (len_trim(ptr%name) == 0 .and. ptr%code > 0) ptr%name = "var" // type_to_string(ptr%code)
@@ -789,6 +825,8 @@ contains
                 if (ptr%code /= -1) call vlistDefVarCode(this%vlistID, ptr%varID, ptr%code)
                 ! define units
                 if (len_trim(ptr%units) > 0) call vlistDefVarUnits(this%vlistID, ptr%varID, trim(ptr%units) // C_NULL_CHAR)
+                ! define the missing value
+                call vlistDefVarMissval(this%vlistID, ptr%varID, ptr%fill_value)
             end if
         end do
 
@@ -807,7 +845,7 @@ contains
         type(listiterator), allocatable :: iter
         class(varinfo), pointer :: ptr
         class(*), pointer :: temp
-        integer :: status
+        integer :: status, index
         character (len=100) :: errmsg
 
         ! loop over all variables in this file
@@ -828,8 +866,20 @@ contains
 
         ! destroy objects used for writing
         if (this%status == "w") then
-            if (this%vlistID >= 0) call vlistDestroy(this%vlistID)
-            if (this%taxisID >= 0) call taxisDestroy(this%taxisID)
+            if (this%vlistID >= 0) then 
+                index = list_vlistID%get_position(this%vlistID)
+                if (index > 0) then
+                    call vlistDestroy(this%vlistID)
+                    call list_vlistID%remove(index)
+                end if
+            end if
+            if (this%taxisID >= 0) then 
+                index = list_taxisID%get_position(this%taxisID)
+                if (index > 0) then
+                    call taxisDestroy(this%taxisID)
+                    call list_taxisID%remove(index)
+                end if
+            end if
         end if
     end subroutine
 
@@ -873,6 +923,7 @@ contains
 
     !> @public
     !> @brief       Set the grid type of this variable, that will reset the coordinate arrays
+    !> @param[in]   this        reference to the varinfo object, automatically set by fortran
     !> @param[in]   new_type    the cdi grid type parameter. Allowed are GRID_GAUSSIAN, GRID_LONLAT, and GRID_UNSTRUCTURED
     subroutine varinfo_set_gridtype(this, new_type)
         class(varinfo) :: this
@@ -888,6 +939,24 @@ contains
         this%nlon = -1
         this%nlat = -1
     end subroutine
+
+    !> @public
+    !> @brief       Set the fill value for this variable
+    !> @param[in]   this        reference to the varinfo object, automatically set by fortran
+    !> @param[in]   fill_value  the new fill_value
+    subroutine varinfo_set_fill_value(this, fill_value)
+        class(varinfo) :: this
+        real (kind=8) :: fill_value
+
+        ! check if the file containing this variable is already fixed
+        if (associated(this%finfo) .and. this%finfo%fixed .eqv. .true.) then
+            call fplus_error_print("fill_value for variable " // trim(this%name) // " not changed. file is already fixed!", "varinfo%set_fill_value")        
+        end if
+
+        ! store the fill_value
+        this%fill_value = fill_value
+    end subroutine
+
 
     !$FP template varinfo_set_zaxis
         !$FP T = {real(kind=8)} {real(kind=8), dimension(:)}
@@ -1246,6 +1315,10 @@ contains
 
         ! compare the shapes
         if (any(nominal_shape /= values_shape)) then
+            print*, "Nominal shape: ", nominal_shape
+            print*, "Actual shape:  ", values_shape
+            print*, "Variable Name: ", this%name
+            print*, "variable Code: ", this%code
             call fplus_error_print("wrong shape of values array!", "varinfo%set_timestep_data")
         end if
 
@@ -1334,14 +1407,27 @@ contains
     !> @param[in]   this    reference to the varinfo object, automatically set by fortran
     subroutine varinfo_clear(this)
         class(varinfo) :: this
+        integer :: index
         if (allocated(this%coord_time)) deallocate (this%coord_time)
         if (allocated(this%coord_lon))  deallocate (this%coord_lon)
         if (allocated(this%coord_lat))  deallocate (this%coord_lat)
         if (allocated(this%coord_z))    deallocate (this%coord_z)
 
         if (associated(this%finfo) .and. this%finfo%status == "w") then
-            if (this%zaxisID >= 0) call zaxisDestroy(this%zaxisID)
-            if (this%gridID >= 0) call gridDestroy(this%gridID)
+            if (this%zaxisID >= 0) then 
+                index = list_zaxisID%get_position(this%zaxisID)
+                if (index > 0) then
+                    call zaxisDestroy(this%zaxisID)
+                    call list_zaxisID%remove(index)
+                end if
+            end if
+            if (this%gridID >= 0) then 
+                index = list_gridID%get_position(this%gridID)
+                if (index > 0) then
+                    call gridDestroy(this%gridID)
+                    call list_gridID%remove(index)
+                end if
+            end if
         end if
 
         ! is this a merged variable?
