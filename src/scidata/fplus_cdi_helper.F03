@@ -97,6 +97,8 @@ module fplus_cdi_helper
         procedure, public :: set_gridtype => varinfo_set_gridtype
         !> @brief   Set the fill value for this variable
         procedure, public :: set_fill_value => varinfo_set_fill_value
+        !> @brief       Get the fill value for this variable
+        procedure, public :: get_fill_value => varinfo_get_fill_value
         !> @brief   Set a new zaxis
         !$FP generic, public :: set_zaxis => varinfo_set_zaxis
         !> @brief   Define a new time coordinate for this variable
@@ -957,6 +959,14 @@ contains
         this%fill_value = fill_value
     end subroutine
 
+    !> @public
+    !> @brief       Get the fill value for this variable
+    !> @param[in]   this        reference to the varinfo object, automatically set by fortran
+    function varinfo_get_fill_value(this) result (res)
+        class(varinfo) :: this
+        real (kind=8) :: res
+        res = this%fill_value
+    end function
 
     !$FP template varinfo_set_zaxis
         !$FP T = {real(kind=8)} {real(kind=8), dimension(:)}
