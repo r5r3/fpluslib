@@ -1271,7 +1271,8 @@ contains
                 !$FP end if
             else
                 ! get the dimensions of the array
-                values_shape = shape(values)            
+                values_shape = shape(values)
+                values_rank = size(values_shape)          
             end if
             ! call the internal subroutine
             call this%varinfo_set_timestep_data_intern(values, values_rank, values_shape, tstep, stime, dt)
@@ -1304,7 +1305,13 @@ contains
         if (this%get_x_size() > 1) dim_count = 1
         if (this%get_y_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) dim_count = dim_count + 1
         if (this%nzval > 1) dim_count = dim_count + 1
-        if (dim_count /= values_rank) call fplus_error_print("wrong number of dimension!", "varinfo%set_timestep_data")
+        if (dim_count /= values_rank) then 
+            print*, "Nominal number of dimensions: ", dim_count
+            print*, "Actual number of dimensions:  ", values_rank
+            print*, "Variable Name: ", this%name
+            print*, "variable Code: ", this%code
+            call fplus_error_print("wrong number of dimension!", "varinfo%set_timestep_data")
+        end if
 
         ! create an array with the nominal shape if the variable
         allocate(nominal_shape(dim_count))
