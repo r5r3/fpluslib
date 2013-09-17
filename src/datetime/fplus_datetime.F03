@@ -57,10 +57,10 @@ module fplus_datetime
     integer, parameter, public :: DT_SECOND = 6
 
     !> @brief   assignment for datetime object
-    public :: assignment (=)
-    interface assignment (=)
-        module procedure class_star_to_datetime
-    end interface
+    public :: assignment (=), to_datetime
+    !$FP interface template assignment (=)
+    !    module procedure class_star_to_datetime
+    !end interface
     
 ! the contents of the module follows
 contains
@@ -497,19 +497,33 @@ contains
         get_year_from_seconds_since_1970 = year
     end function
 
+    !$FP template assignment (=)
+        !$FP types = {real (kind=8)} {type(datetime)}
+        !$FP do i = 1, 2
+            !> @public
+            !> @brief   assignment other datetime objects and real k8 values to datetime objects
+            subroutine assign_to_datetime(outval, inval)
+                type(datetime), intent(inout) :: outval
+                ${types(i)}, intent(in) :: inval
+                !$FP if (i==1) outval%time_in_sec1970 = inval
+                !$FP if (i==2) outval%time_in_sec1970 = inval%time_in_sec1970
+            end subroutine
+        !$FP end do
+    !$FP end template
+
     !> @public
-    !> @brief   assignment other datetime objects and real k8 values to datetime objects
-    subroutine class_star_to_datetime(outval, inval)
-        type(datetime), intent(inout) :: outval
-        class(*), intent(in) :: inval
-        select type (inval)
+    !> @brief   convert other datetime objects and real k8 values to datetime objects
+    function to_datetime(value) result (res)
+        type(datetime) :: res
+        class(*), intent(in) :: value
+        select type(value)
             type is (real (kind=8))
-                outval%time_in_sec1970 = inval
+                res%time_in_sec1970 = value
             type is (datetime)
-                outval%time_in_sec1970 = inval%time_in_sec1970
+                res%time_in_sec1970 = value%time_in_sec1970
             class default
                 call fplus_error_print("wrong type in assignment to datetime object, only real (kind=8) and datetime are supported", "datetime = class(*)", FPLUS_ERR)
         end select
-    end subroutine
+    end function
 
 end module
