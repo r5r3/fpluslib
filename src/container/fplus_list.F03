@@ -203,6 +203,8 @@ contains
         if (this%nelements == 0) then
             this%firstElement => new_element(value, null(), null(), copyValue)
             this%lastElement => this%firstElement
+            this%firstElement%nextElement => null()
+            this%firstElement%prevElement => null()
         else
             ! 1. the element will be the new last element
             if (new_index == this%nelements+1) then
@@ -506,15 +508,19 @@ contains
         if (.not.associated(elem)) call fplus_error_print("unexpected error", "list%remove")
 
         ! change the links in the next and previous element
-        if (associated(elem%prevElement)) then
+        if (associated(elem%prevElement) .and. associated(elem%nextElement)) then
+            print*, ind, this%last_index_in_get, this%length()
             elem%prevElement%nextElement => elem%nextElement
-        else
-            this%firstElement => elem%nextElement
-        end if
-        if (associated(elem%nextElement)) then
             elem%nextElement%prevElement => elem%prevElement
-        else
+        else if (associated(elem%prevElement) .and. .not. associated(elem%nextElement)) then
+            elem%prevElement%nextElement => null()
             this%lastElement => elem%prevElement
+        else if (.not. associated(elem%prevElement) .and. associated(elem%nextElement)) then
+            elem%nextElement%prevElement => null()
+            this%firstElement => elem%nextElement
+        else
+            this%firstElement => null()
+            this%lastElement => null()
         end if
 
         ! change the last element accessed in get

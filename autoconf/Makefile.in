@@ -1,4 +1,5 @@
 #some variables
+#DEBUGFLAGS=-g -traceback
 
 # the default extension for a dynamic library
 OS=@OS@
@@ -12,8 +13,8 @@ else
 endif
 
 # select a compiler
-FC=@FC@
-CC=@CC@
+FC=@FC@ $(DEBUGFLAGS)
+CC=@CC@ $(DEBUGFLAGS)
 FCFLAGS=@FCFLAGS@ @FC_MODINC@include @FC_MODOUT@include
 CCFLAGS=@CFLAGS@ 
 
