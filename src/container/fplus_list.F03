@@ -31,6 +31,7 @@ module fplus_list
         integer, private :: last_index_in_get = 0
         !> @brief   a pointer to the last elements acessed in list%get
         class(element), pointer, private :: last_element_in_get => null()
+        logical, private :: initialized = .false.
         ! procedures
     contains
         !> @brief   Appends the specified value to the end of this list.
@@ -93,7 +94,7 @@ contains
     ! at first the procedures for the list ------------------------------------
 
     !> @public
-    !> @brief   Create a new initialzied list.
+    !> @brief   Create a new initialized list.
     function new_list()
         type(list) :: new_list
 
@@ -102,6 +103,7 @@ contains
         new_list%lastElement => null()
         new_list%nelements = 0
         new_list%last_index_in_get = 0
+        new_list%initialized = .true.
     end function
 
     !> @public
@@ -182,6 +184,9 @@ contains
         integer :: new_index
         class(element), pointer :: current_element, added_element
 
+        ! was this list initialized?
+        if (this%initialized .eqv. .false.) call fplus_error_print("uninitialized list", "list%add")
+
         ! ia a position given?
         if (present(ind)) then
             new_index = ind
@@ -250,6 +255,9 @@ contains
 
         ! local variables
         class(element), pointer :: nextele
+
+        ! was this list initialized?
+        if (this%initialized .eqv. .false.) call fplus_error_print("uninitialized list", "list%get")
 
         ! get the element
         nextele => this%get_element(ind)

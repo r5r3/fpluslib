@@ -3,6 +3,9 @@
 module fplus_path
     use fplus_object
     use fplus_hashcode
+    use fplus_container
+    use fplus_error
+    use fplus_strings
     use, intrinsic :: ISO_C_BINDING
     implicit none
     private
@@ -23,10 +26,12 @@ module fplus_path
         procedure, public :: get_extension => path_get_extension
         !> @brief   Returns the path without the extension
         procedure, public :: get_basename => path_get_basename
+        !> @brief   Returns the content of a text file as character array
+        procedure, public :: get_lines => path_get_lines
     end type
 
     ! public procedures
-    public :: new_path
+    public :: new_path, to_path
 
 contains
 
@@ -116,4 +121,64 @@ contains
             res = trim(this%name(:i1-1))
         end if
     end function
+
+    !> @public 
+    !> @brief       Returns the content of a text file as character array
+    !> @param       as_path     set to true if the content of the file is one filename per line. 
+    !>                          the returned list will then contain path objects.       
+    function path_get_lines(this, as_path) result (res)
+        class(path) :: this
+        logical, optional :: as_path
+        type(list) :: res
+
+        ! local variables
+        logical :: as_path_intern
+        integer :: unit, iostat, reclen
+        character(len=80) :: iomsg
+        character(len=1000) :: line
+        type(string) :: line_str
+        type(path) :: path_str
+
+        as_path_intern = present(as_path)
+        if (as_path_intern) as_path_intern = as_path .eqv. .true.
+
+        ! a new list for the result
+        res = new_list()
+
+        ! open the input file
+        open(newunit=unit, file=this%name, status="OLD", action="READ", iostat=iostat, iomsg=iomsg)
+        ! any errors? 
+        if (iostat /= 0) call fplus_error_print(iomsg, "path%get_lines")
+
+        ! read as long as no errors occure
+        do
+            read (unit, "(a)", iostat=iostat,iomsg=iomsg) line
+            if (iostat /= 0) exit
+            if (as_path_intern) then
+                path_str%name = line
+                call res%add(path_str, copy=.true.)
+            else
+                line_str%chars = line
+                call res%add(line_str, copy=.true.)
+            end if
+        end do
+
+        ! close the file again
+        close(unit)
+    end function
+
+    !> @public
+    !> @brief       Cast an class(*) type to path
+    !> @param       arg     class(*) type to convert
+    function to_path(arg) result (res)
+        class(*) :: arg
+        type(path) :: res
+        select type (arg)
+            type is (path)
+                res = arg
+            class default
+                call fplus_error_print("wrong datatype in cast to path", "to_path")
+        end select
+    end function
+
 end module fplus_path

@@ -153,9 +153,10 @@ module fplus_cdi_helper
     end interface
 
     ! @brief    it is possible to create a new datapool with one or more files.
-    interface new_datapool
-        module procedure new_datapool_1file, new_datapool_nfiles
-    end interface
+    !interface new_datapool
+    !    module procedure new_datapool_1file, new_datapool_nfiles
+    !end interface
+    !$FP interface template new_datapool
 
     ! a global list of created resources (grids, zaxis, etc.)
     !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
@@ -165,61 +166,71 @@ contains
 
     ! procedures for the datapool object ==========================================================
 
-    !> @brief       Create a new datapool from a array of path objects
-    !> @details     Reading is possible from mulptiply files add ones, writing so fare only in single files
-    !> @param[in]   infile      one path object that contains the filename
-    !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
-    function new_datapool_1file(infile, status) result (res)
-        type(datapool) :: res
-        type(path) :: infile
-        character (len=1), intent(in), optional :: status
-        res = new_datapool_nfiles((/infile/), status)
-    end function
+    !$FP template new_datapool
+        !> @brief       Create a new datapool from a array of path objects
+        !> @details     Reading is possible from mulptiply files add ones, writing so fare only in single files
+        !> @param[in]   infile      one path object that contains the filename
+        !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
+        function new_datapool_1file(infile, status) result (res)
+            type(datapool) :: res
+            type(path) :: infile
+            character (len=1), intent(in), optional :: status
+            res = new_datapool_nfiles_2((/infile/), status)
+        end function
 
-    !> @brief       Create a new datapool from a array of path objects
-    !> @details     Reading is possible from mulptiply files add ones, writing so fare only in single files
-    !> @param[in]   infiles     An Array of path objects that contain the filename(s)
-    !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
-    function new_datapool_nfiles(infiles, status) result (res)
-        type(datapool) :: res
-        type(path), dimension(:) :: infiles
-        character (len=1), intent(in), optional :: status
+        !$FP intype = {type(path), dimension(:)} {type(list)}
+        !$FP do j = 1,2
+            !> @brief       Create a new datapool from a array of path objects
+            !> @details     Reading is possible from mulptiply files add ones, writing so fare only in single files
+            !> @param[in]   infiles     An Array of path objects that contain the filename(s)
+            !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
+            function new_datapool_nfiles(infiles, status) result (res)
+                type(datapool) :: res
+                ${intype(j)} :: infiles
+                character (len=1), intent(in), optional :: status
 
-        ! local variables
-        integer :: i
-        type(fileinfo), pointer :: finfo
+                ! local variables
+                integer :: i, lsize
+                type(fileinfo), pointer :: finfo
+                type(path) :: onefile
 
-        ! reading or writing
-        if (present(status)) then
-            res%status = status
-        else
-            res%status = "r"
-        end if
-        if (res%status /= "r" .and. res%status /= "w") then
-            call fplus_error_print("unknown status: " // res%status, "new_datapool")
-        end if
+                ! reading or writing
+                if (present(status)) then
+                    res%status = status
+                else
+                    res%status = "r"
+                end if
+                if (res%status /= "r" .and. res%status /= "w") then
+                    call fplus_error_print("unknown status: " // res%status, "new_datapool")
+                end if
 
-        ! so far, only one file for writing is supported
-        if (size(infiles) > 1 .and. res%status == "w") call fplus_error_print("datapools with more than one file is so far only supported for reading", "new_datapool", FPLUS_ERR)
+                ! so far, only one file for writing is supported
+                !$FP if (j == 1) lsize = size(infiles)
+                !$FP if (j == 2) lsize = infiles%length()                
+                if (lsize > 1 .and. res%status == "w") call fplus_error_print("datapools with more than one file is so far only supported for reading", "new_datapool", FPLUS_ERR)
 
-        ! create a new list for the files
-        res%files = new_list()
+                ! create a new list for the files
+                res%files = new_list()
 
-        ! check at first if all infiles are present
-        do i = 1, size(infiles)
-            if (res%status == "r" .and. .not.infiles(i)%exists()) then
-                call fplus_error_print("file not found: "//trim(infiles(i)%name), "new_datapool")
-            end if
+                ! check at first if all infiles are present
+                do i = 1, lsize
+                    !$FP if (j == 1) onefile = infiles(i)
+                    !$FP if (j == 2) onefile = to_path(infiles%get(i))
+                    if (res%status == "r" .and. .not.onefile%exists()) then
+                        call fplus_error_print("file not found: "//trim(onefile%name), "new_datapool")
+                    end if
 
-            ! put the fileinfo into the list
-            call res%files%add(new_fileinfo(infiles(i), res%status))
-        end do
+                    ! put the fileinfo into the list
+                    call res%files%add(new_fileinfo(onefile, res%status))
+                end do
 
-        ! create lists to track cdi resources
-        !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
-        if (.not. allocated(${lst})) allocate(${lst})
+                ! create lists to track cdi resources
+                !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
+                if (.not. allocated(${lst})) allocate(${lst})
+                !$FP end do
+            end function
         !$FP end do
-    end function
+    !$FP end template
 
     !> @brief       Get a pointer to the variable information for a given code, name, or standard_name and z-axsis.
     !> @details     if lon_range and/or lat range is present, then a subsection is created.
