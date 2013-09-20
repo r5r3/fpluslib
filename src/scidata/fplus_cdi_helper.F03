@@ -134,7 +134,7 @@ module fplus_cdi_helper
     end type
 
     !list of public functions
-    public :: new_datapool, to_varinfo
+    public :: new_datapool, to_varinfo, to_datapool
 
     ! interface to some function from the c api of CDI that are not already included in mo_cdi
     interface
