@@ -153,9 +153,6 @@ module fplus_cdi_helper
     end interface
 
     ! @brief    it is possible to create a new datapool with one or more files.
-    !interface new_datapool
-    !    module procedure new_datapool_1file, new_datapool_nfiles
-    !end interface
     !$FP interface template new_datapool
 
     ! a global list of created resources (grids, zaxis, etc.)
@@ -232,6 +229,7 @@ contains
         !$FP end do
     !$FP end template
 
+    !> @public
     !> @brief       Get a pointer to the variable information for a given code, name, or standard_name and z-axsis.
     !> @details     if lon_range and/or lat range is present, then a subsection is created.
     !> @param[in]   this        reference to the datapool object, automatically set by fortran
@@ -547,6 +545,19 @@ contains
         end do
     end subroutine
 
+    !> @public
+    !> @brief   Convert a class(*) pointer to datapool pointer
+    function to_datapool(input) result (res)
+        class(datapool), pointer :: res
+        class(*), pointer, intent(in) :: input
+        res => null()
+        select type (input)
+            class is (datapool)
+                res => input
+            class default
+                call fplus_error_print("wrong data type", "to_datapool")
+        end select
+    end function
 
     ! precedures for the fileinfo object ==========================================================
 
