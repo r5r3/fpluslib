@@ -1,6 +1,7 @@
 !> @brief   Some functions to handel errors during programm execution
 module fplus_error
     use, intrinsic :: iso_fortran_env
+    use, intrinsic :: iso_c_binding
     use fplus_strings
     implicit none
     private
@@ -12,6 +13,14 @@ module fplus_error
     integer, parameter, public :: FPLUS_ERR   = 1
     integer, parameter, public :: FPLUS_WARN = 2
     integer, parameter, public :: FPLUS_FATAL   = 3
+
+    interface
+        function raise(sig) result (res) bind (c, name="raise")
+            import :: c_int
+            integer (kind=c_int) :: res
+            integer (kind=c_int), value :: sig
+        end function
+    end interface
 
 contains
 
@@ -26,7 +35,7 @@ contains
 
         ! local variables
         character (len=:), allocatable :: err_type_text
-        integer :: ierrtype
+        integer :: ierrtype, ierr
 
         ! the default error type if FPLUS_ERROR
         if (present(errtype)) then
@@ -56,10 +65,12 @@ contains
         ! exit the program
         select case (ierrtype)
             case (FPLUS_ERR, FPLUS_FATAL)
+                ierr = raise(15) !SIGTERM
                 call exit(-1)
             case (FPLUS_WARN)
                 ! do nothing
             case default
+                ierr = raise(15) !SIGTERM
                 call exit(-1)
         end select
     end subroutine

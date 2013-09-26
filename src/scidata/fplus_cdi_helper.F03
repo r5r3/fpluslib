@@ -101,6 +101,10 @@ module fplus_cdi_helper
         procedure, public :: get_fill_value => varinfo_get_fill_value
         !> @brief   Set a new zaxis
         !$FP generic, public :: set_zaxis => varinfo_set_zaxis
+        !> @brief   Set a new xaxis
+        !$FP generic, public :: set_xaxis => varinfo_set_xaxis
+        !> @brief   Set a new yaxis
+        !$FP generic, public :: set_yaxis => varinfo_set_yaxis
         !> @brief   Define a new time coordinate for this variable
         generic, public :: set_coord_time => varinfo_set_coord_time_real8, varinfo_set_coord_time_datetime_list
         procedure, private :: varinfo_set_coord_time_real8
@@ -157,7 +161,7 @@ module fplus_cdi_helper
 
     ! a global list of created resources (grids, zaxis, etc.)
     !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
-    class(list), allocatable :: ${lst}
+    type(list), allocatable :: ${lst}
     !$FP end do
 contains
 
@@ -224,6 +228,7 @@ contains
                 ! create lists to track cdi resources
                 !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
                 if (.not. allocated(${lst})) allocate(${lst})
+                ${lst} = new_list()
                 !$FP end do
             end function
         !$FP end do
@@ -1015,6 +1020,60 @@ contains
             ! store the type
             this%zaxistype = type_z
             this%nzval = ${COORD_SIZE(i)}
+        end subroutine
+        !$FP end do
+    !$FP end template
+
+    !$FP template varinfo_set_xaxis
+        !$FP T = {real(kind=8)} {real(kind=8), dimension(:)}
+        !$FP COORD_SIZE = 1 {size(coord_x)}
+    
+        !$FP do i = 1, 2
+        !> @public
+        !> @brief       Define a new xaxis for this variable
+        !> @param[in]   this        reference to the varinfo object, automatically set by fortran
+        subroutine varinfo_set_xaxis(this, coord_x)
+            class(varinfo) :: this
+            ${T(i)}, intent(in) :: coord_x
+
+            ! remove the old coordinate
+            if (allocated(this%coord_lon)) deallocate(this%coord_lon)
+
+            ! create a new coordinate axis
+            allocate(this%coord_lon(${COORD_SIZE(i)}))
+
+            ! copy the values
+            this%coord_lon = coord_x
+
+            ! store the size
+            this%nlon = ${COORD_SIZE(i)}
+        end subroutine
+        !$FP end do
+    !$FP end template
+
+    !$FP template varinfo_set_yaxis
+        !$FP T = {real(kind=8)} {real(kind=8), dimension(:)}
+        !$FP COORD_SIZE = 1 {size(coord_y)}
+    
+        !$FP do i = 1, 2
+        !> @public
+        !> @brief       Define a new yaxis for this variable
+        !> @param[in]   this        reference to the varinfo object, automatically set by fortran
+        subroutine varinfo_set_yaxis(this, coord_y)
+            class(varinfo) :: this
+            ${T(i)}, intent(in) :: coord_y
+
+            ! remove the old coordinate
+            if (allocated(this%coord_lat)) deallocate(this%coord_lat)
+
+            ! create a new coordinate axis
+            allocate(this%coord_lat(${COORD_SIZE(i)}))
+
+            ! copy the values
+            this%coord_lat = coord_y
+
+            ! store the size
+            this%nlat = ${COORD_SIZE(i)}
         end subroutine
         !$FP end do
     !$FP end template
