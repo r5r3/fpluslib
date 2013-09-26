@@ -134,7 +134,9 @@ module fplus_cdi_helper
         !> @brief   Get the size of the underlying array in x-direction
         procedure, public :: get_x_size => varinfo_get_x_size
         !> @brief   Get the size of the underlying array in x-direction
-        procedure, public :: get_y_size => varinfo_get_y_size        
+        procedure, public :: get_y_size => varinfo_get_y_size     
+        !> @brief   Get all dates that belong to one month
+        procedure, public :: get_dates_in_month => varinfo_get_dates_in_month   
     end type
 
     !list of public functions
@@ -224,7 +226,6 @@ contains
                     ! put the fileinfo into the list
                     call res%files%add(new_fileinfo(onefile, res%status))
                 end do
-
                 ! create lists to track cdi resources
                 !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
                 if (.not. allocated(${lst})) allocate(${lst})
@@ -1700,6 +1701,34 @@ contains
         else
             call fplus_error_print("unsupported grid: " // trim(type_to_string(this%gridtype)), "get_y_size")
         end if
+    end function
+
+    !> @public
+    !> @brief       get all dates that belong to one month from a variable
+    !> @param[in]   this    reference to the varinfo object, automatically set by fortran
+    !> @param[in]   year    the year of interest
+    !> @param[in]   month   the month of interest
+    !> @return      a list object which contains date objects 
+    function varinfo_get_dates_in_month(this, year, month) result (res)
+        class(varinfo) :: this
+        integer, intent(in) :: year, month
+        type(list) :: res
+
+        ! local variables
+        integer :: i, dt_year, dt_month
+        type(datetime) :: dt
+
+        ! init the new list
+        res = new_list()
+
+        ! loop over the time coordinate array to find all dates that fall into this month
+        do i = 1, size(this%coord_time)
+            dt = this%coord_time(i)
+            call dt%get(year=dt_year, month=dt_month)
+            if (dt_year == year .and. dt_month == month) then
+                call res%add(dt, copy=.true.)
+            end if
+        end do
     end function
 
 end module fplus_cdi_helper
