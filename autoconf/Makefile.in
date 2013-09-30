@@ -1,8 +1,8 @@
 #debuging
 #ifort
-#DEBUGFLAGS=-g -traceback
+#DEBUGFLAGS=-g -traceback -check bounds
 #gfortran
-#DEBUGFLAGS=-g -fbounds-check
+#DEBUGFLAGS=-g -fbacktrace -fbounds-check
 
 # the default extension for a dynamic library
 OS=@OS@
