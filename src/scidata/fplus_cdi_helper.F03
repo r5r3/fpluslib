@@ -136,7 +136,9 @@ module fplus_cdi_helper
         !> @brief   Get the size of the underlying array in x-direction
         procedure, public :: get_y_size => varinfo_get_y_size     
         !> @brief   Get all dates that belong to one month
-        procedure, public :: get_dates_in_month => varinfo_get_dates_in_month   
+        procedure, public :: get_dates_in_month => varinfo_get_dates_in_2  
+        !> @brief   Get all dates that belong to one year
+        procedure, public :: get_dates_in_year => varinfo_get_dates_in_1   
     end type
 
     !list of public functions
@@ -1178,9 +1180,12 @@ contains
             real (kind=8), ${D(i)}, allocatable :: temp
 
             ! is this variable 2d or 3d?
-            if (${D2(i)} == 2 .and. this%nzval > 1) call fplus_error_print(this%to_string() // " is not 2-dimensional!", "varinfo%get_timestep_data")
-            if (${D2(i)} == 3 .and. this%nzval == 1) call fplus_error_print(this%to_string() // " is not 3-dimensional!", "varinfo%get_timestep_data")
-            if (${D2(i)} == 2 .and. present(levels)) call fplus_error_print(this%to_string() // " is not 3-dimensional! Don't use the levels argument!", "varinfo%get_timestep_data")
+            if (${D2(i)} == 2 .and. this%nzval > 1 .and. (.not. present(levels) .or. (present(levels) .and. size(levels) > 1))) & 
+                call fplus_error_print(this%to_string() // " is not 2-dimensional!", "varinfo%get_timestep_data")
+            if (${D2(i)} == 3 .and. this%nzval == 1)  & 
+                call fplus_error_print(this%to_string() // " is not 3-dimensional!", "varinfo%get_timestep_data")
+            if (${D2(i)} == 2 .and. present(levels) .and. size(levels) > 1) & 
+                call fplus_error_print(this%to_string() // " is not 3-dimensional! Don't use the levels argument!", "varinfo%get_timestep_data")
             
             ! at least one valid parameter must be present
             if (.not.present(tstep) .and. .not.present(stime) .and. .not.present(dt)) then
@@ -1703,32 +1708,43 @@ contains
         end if
     end function
 
-    !> @public
-    !> @brief       get all dates that belong to one month from a variable
-    !> @param[in]   this    reference to the varinfo object, automatically set by fortran
-    !> @param[in]   year    the year of interest
-    !> @param[in]   month   the month of interest
-    !> @return      a list object which contains date objects 
-    function varinfo_get_dates_in_month(this, year, month) result (res)
-        class(varinfo) :: this
-        integer, intent(in) :: year, month
-        type(list) :: res
+    !$FP template varinfo_get_dates_in
+    !$FP year_or_month = year month
+    !$FP do i = 1, 2
+        !> @public
+        !> @brief       get all dates that belong to one ${year_or_month(i)} from a variable
+        !> @param[in]   this    reference to the varinfo object, automatically set by fortran
+        !> @param[in]   year    the year of interest
+        !$FP if (i == 2) !> @param[in]   month   the month of interest
+        !> @return      a list object which contains date objects 
+        function varinfo_get_dates_in(this &
+                ,year &
+                !$FP if (i == 2) ,month &
+                ) result (res)
+            class(varinfo) :: this
+            integer, intent(in) :: year
+            !$FP if (i == 2) integer, intent(in) :: month            
+            type(list) :: res
 
-        ! local variables
-        integer :: i, dt_year, dt_month
-        type(datetime) :: dt
+            ! local variables
+            integer :: i, dt_year, dt_month
+            type(datetime) :: dt
 
-        ! init the new list
-        res = new_list()
+            ! init the new list
+            res = new_list()
 
-        ! loop over the time coordinate array to find all dates that fall into this month
-        do i = 1, size(this%coord_time)
-            dt = this%coord_time(i)
-            call dt%get(year=dt_year, month=dt_month)
-            if (dt_year == year .and. dt_month == month) then
-                call res%add(dt, copy=.true.)
-            end if
-        end do
-    end function
+            ! loop over the time coordinate array to find all dates that fall into this month
+            do i = 1, size(this%coord_time)
+                dt = this%coord_time(i)
+                call dt%get(year=dt_year, month=dt_month)
+                if (dt_year == year & 
+                    !$FP if (i == 2) .and. dt_month == month &
+                    ) then
+                    call res%add(dt, copy=.true.)
+                end if
+            end do
+        end function
+    !$FP end do
+    !$FP end template
 
 end module fplus_cdi_helper
