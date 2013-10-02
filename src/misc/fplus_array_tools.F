@@ -2,11 +2,7 @@
 module fplus_array_tools
     use fplus_fillvalue
     use fplus_error
-    private
-
-    ! list of public procedures
-    public :: valueindex, swap, array_copy, qsort, valueindex_largest_le, valueindex_largest_ge, valueindex_smallest_ge, & 
-              valueindex_smallest_le, closest_index, value_in_range, is_monotonic, rotate_array
+    use fplus_array_tools_2
 
     !>@ brief   Interface for the implementation of is_monotonic
     interface template rotate_array

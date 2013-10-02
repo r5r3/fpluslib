@@ -98,6 +98,12 @@ contains
                 !$FP if (i > 2) nz = size(inarray,3)
                 !$FP if (i > 3) nt = size(inarray,4)
 
+                !$FP if (i == 2) then
+                !print*, "mx=", mx, " my=",my
+                !IF (outx(1) < inx(1) .OR. outx(mx) > inx(nx)) print*, outx(1), inx(1), outx(mx), inx(nx)
+                !IF (outy(1) < iny(1) .OR. outy(my) > iny(ny)) print*, outy(1), iny(1), outy(my), iny(ny)
+                !$FP end if
+
                 ! create the local real workspace
                 lwx = 4*mx
                 !$FP if (i > 1) then

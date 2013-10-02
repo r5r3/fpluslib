@@ -88,6 +88,9 @@ module fplus_cdi_helper
         integer :: rotated_by_npoints = 0
         ! is this variable constant in time? 
         logical :: is_constant = .false.
+        ! is the x- or y-axsis flipped (starts with larger values?)
+        logical :: coord_lon_flipped = .false.
+        logical :: coord_lat_flipped = .false.
     contains
         !> @brief   Set the grib code for this variable
         procedure, public :: set_name => varinfo_set_name
@@ -692,6 +695,24 @@ contains
                     stat = gridInqXvals(gridID, info%coord_lon)
                     stat = gridInqYvals(gridID, info%coord_lat)
 
+                    ! is a lon-lat or gaussian grid upside down orrientated?
+                    if (info%gridtype == GRID_LONLAT .or. info%gridtype == GRID_GAUSSIAN .and. info%nlon > 1) then
+                        if (info%coord_lon(1) > info%coord_lon(2)) then
+                            info%coord_lon_flipped = .true.
+                            call flip(info%coord_lon)
+                        else
+                            info%coord_lon_flipped = .false.
+                        end if
+                    end if
+                    if (info%gridtype == GRID_LONLAT .or. info%gridtype == GRID_GAUSSIAN .and. info%nlat > 1) then
+                        if (info%coord_lat(1) > info%coord_lat(2)) then
+                            info%coord_lat_flipped = .true.
+                            call flip(info%coord_lat)
+                        else
+                            info%coord_lat_flipped = .false.
+                        end if
+                    end if
+
                     ! store the zaxis coordinates
                     info%nzval = zaxisInqSize(zaxisID)
                     allocate(info%coord_z(info%nzval))
@@ -1178,13 +1199,18 @@ contains
             class(varinfo), pointer :: varptr
             class(*), pointer :: ptr
             real (kind=8), ${D(i)}, allocatable :: temp
+            integer :: nlevels
+
+            ! how many levels do we have?
+            nlevels = this%nzval
+            if (present(levels)) nlevels = size(levels)
 
             ! is this variable 2d or 3d?
-            if (${D2(i)} == 2 .and. this%nzval > 1 .and. (.not. present(levels) .or. (present(levels) .and. size(levels) > 1))) & 
+            if (${D2(i)} == 2 .and. this%nzval > 1 .and. nlevels > 1) & 
                 call fplus_error_print(this%to_string() // " is not 2-dimensional!", "varinfo%get_timestep_data")
             if (${D2(i)} == 3 .and. this%nzval == 1)  & 
                 call fplus_error_print(this%to_string() // " is not 3-dimensional!", "varinfo%get_timestep_data")
-            if (${D2(i)} == 2 .and. present(levels) .and. size(levels) > 1) & 
+            if (${D2(i)} == 2 .and. present(levels) .and. nlevels > 1) & 
                 call fplus_error_print(this%to_string() // " is not 3-dimensional! Don't use the levels argument!", "varinfo%get_timestep_data")
             
             ! at least one valid parameter must be present
@@ -1280,6 +1306,28 @@ contains
                 do ind = lbound(levels,1), ubound(levels,1)
                     call streamReadVarSlice(streamID, varID, levels(ind)-1, res(:,: ${ZLEVID(i)}), nmiss)
                 end do
+            end if
+
+            ! flip the result if needed
+            if (this%coord_lon_flipped) then
+                !$FP if (D2(i) == 2) then
+                    call flip_2d(res, 1)
+                !$Fp end if
+                !$FP if (D2(i) == 3) then
+                    do ind = 1, size(res,3)
+                        call flip_2d(res(:,:,ind), 1)
+                    end do
+                !$FP end if                
+            end if
+            if (this%coord_lat_flipped) then
+                !$FP if (D2(i) == 2) then
+                    call flip_2d(res, 2)
+                !$Fp end if
+                !$FP if (D2(i) == 3) then
+                    do ind = 1, size(res,3)
+                        call flip_2d(res(:,:,ind), 2)
+                    end do
+                !$FP end if                
             end if
         end subroutine
         !$FP end do
@@ -1668,14 +1716,16 @@ contains
         end if
         
         !copy attributes
-        res%name            = this%name
-        res%standard_name   = this%standard_name
-        res%longname        = this%longname
-        res%units           = this%units
-        res%code            = this%code
-        res%zaxistype       = this%zaxistype
-        res%gridtype        = this%gridtype
-        res%is_constant     = this%is_constant
+        res%name                = this%name
+        res%standard_name       = this%standard_name
+        res%longname            = this%longname
+        res%units               = this%units
+        res%code                = this%code
+        res%zaxistype           = this%zaxistype
+        res%gridtype            = this%gridtype
+        res%is_constant         = this%is_constant
+        res%coord_lon_flipped   = this%coord_lon_flipped
+        res%coord_lat_flipped   = this%coord_lat_flipped
     end function
 
     !> @public
