@@ -1437,7 +1437,7 @@ contains
 
         ! how many dimensions do we have?
         dim_count = 0
-        if (this%get_x_size() > 1) dim_count = 1
+        if (this%get_x_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) dim_count = 1
         if (this%get_y_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) dim_count = dim_count + 1
         if (this%nzval > 1) dim_count = dim_count + 1
         if (dim_count /= values_rank) then 
@@ -1451,7 +1451,7 @@ contains
         ! create an array with the nominal shape if the variable
         allocate(nominal_shape(dim_count))
         ind = 1
-        if (this%get_x_size() > 1) then
+        if (this%get_x_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) then
             nominal_shape(ind) = this%get_x_size()
             ind = ind +1
         end if
