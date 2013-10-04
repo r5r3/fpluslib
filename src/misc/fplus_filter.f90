@@ -1,4 +1,5 @@
 module fplus_filter
+    use fplus_error
     implicit none
 
 contains
@@ -22,6 +23,9 @@ contains
         REAL (kind=8) :: trev(Ntermin) , zrev(Ntermin) , f(6,5)
         REAL (kind=8) :: a(5) , b(5) , c(5) , d(5) , e(5) , f1 , f2 , temp
         REAL (kind=8) :: cs , p , q , r , s , deltat , wc , w1 , w2 , x , pi
+
+        ! maximum order allowed is 10 
+        if (Ns > 5) call fplus_error_print("maximum order allowed is 10", "BWBPASS")
 
         !      REAL A(5),B(5),C(5),D(5),E(5)
         !      REAL CS,P,Q,R,S,DELTAT,WC,W1,W2,X,F1,F2
