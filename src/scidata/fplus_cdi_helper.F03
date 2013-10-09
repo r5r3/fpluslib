@@ -1726,6 +1726,7 @@ contains
         res%is_constant         = this%is_constant
         res%coord_lon_flipped   = this%coord_lon_flipped
         res%coord_lat_flipped   = this%coord_lat_flipped
+        res%fill_value          = this%fill_value
     end function
 
     !> @public
