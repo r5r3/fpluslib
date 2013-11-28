@@ -37,7 +37,7 @@ module fplus_list
         !> @brief   Appends the specified value to the end of this list.
         procedure, public :: add => list_add
         !> @brief   Returns the value at the specified position in this list.
-        procedure, public :: get => list_get
+        !$FP generic, public :: get => list_get
         !> @brief   Subroutine to read intrinsic types from a list element
         !$FP generic, public :: get_intrinsic => list_get_intrinsic
         !> @brief   Function to find the first occurence of a value within the list
@@ -45,7 +45,7 @@ module fplus_list
         !> @brief   Returns the element at the specified position in this list, internaly used only
         procedure, private :: get_element => list_get_element
         !> @brief   Remove an element at the specified position
-        procedure, public :: remove => list_remove
+        !$FP generic, public :: remove => list_remove
         !> @brief   Returns the first value in the list.
         procedure, public :: first => list_first
         !> @brief   Returns the first value in the list.
@@ -56,6 +56,8 @@ module fplus_list
         procedure, public :: clear => list_clear
         !> @brief   Returns the number of elements in this list
         procedure, public :: length => list_length
+        !> @brief   Check the size of the list, is it small enough for kind=4 indices?
+        procedure, private :: length_is_long => list_length_is_long
         !> @brief   Returns a string representation of the list
         procedure, public :: to_string => list_to_string
         !> @brief   Calculate a hashcode for the list
@@ -241,63 +243,75 @@ contains
         this%nelements = this%nelements + 1
     end subroutine
 
-    !> @public
-    !> @brief       Returns the value at the specified position in this list.
-    !> @details     Returns the value at a given index, this function provides array-like
-    !>              behavior of the list, but it is slow.
-    !> @param[in]   this    reference to the map object, automatically set by fortran
-    !> @param[in]   ind     the index of the searched value.
-    !> @return      Returns the value if the index is in the list, otherwise a null-pointer.
-    function list_get(this, ind) result (res)
-        class(list) :: this
-        integer (kind=8) :: ind
-        class(*), pointer :: res
+    !$FP template list_get
+        !$FP indT = {integer (kind=4)} {integer (kind=8)}
+        !$FP do i = 1, 2
+            !> @public
+            !> @brief       Returns the value at the specified position in this list.
+            !> @details     Returns the value at a given index, this function provides array-like
+            !>              behavior of the list, but it is slow.
+            !> @param[in]   this    reference to the map object, automatically set by fortran
+            !> @param[in]   ind     the index of the searched value.
+            !> @return      Returns the value if the index is in the list, otherwise a null-pointer.
+            function list_get(this, ind) result (res)
+                class(list) :: this
+                ${indT(i)} :: ind
+                class(*), pointer :: res
 
-        ! local variables
-        class(element), pointer :: nextele
+                ! local variables
+                class(element), pointer :: nextele
 
-        ! was this list initialized?
-        if (this%initialized .eqv. .false.) call fplus_error_print("uninitialized list", "list%get")
+                ! was this list initialized?
+                if (this%initialized .eqv. .false.) call fplus_error_print("uninitialized list", "list%get")
 
-        ! get the element
-        nextele => this%get_element(ind)
+                ! get the element
+                !$FP if (i == 1) then
+                    if (this%length_is_long()) call fplus_error_print("list to long for integer (kind=4) index variables!", "list%get")
+                    nextele => this%get_element(int(ind,8))
+                !$FP else
+                    nextele => this%get_element(ind)
+                !$FP end if
 
-        ! copy the value pointer
-        res => null()
-        if (associated(nextele)) res => nextele%value
-    end function
+                ! copy the value pointer
+                res => null()
+                if (associated(nextele)) res => nextele%value
+            end function
+        !$FP end do
+    !$FP end template
 
     !$FP template list_get_intrinsic
         !$FP do T = {real (kind=4)} {real (kind=8)} {integer (kind=4)} {integer (kind=8)}
-            !> @public
-            !> @brief       Subroutine to read ${T} from a list element
-            !> @param[in]   this    reference to the map object, automatically set by fortran
-            !> @param[in]   ind     the index of the searched element.
-            !> @param[out]  value   the value of this list element 
-            subroutine list_get_intrinsic(this, ind, value)
-                class(list) :: this
-                integer (kind=8) :: ind
-                ${T} :: value
+            !$FP do indT = {integer (kind=4)} {integer (kind=8)}
+                !> @public
+                !> @brief       Subroutine to read ${T} from a list element
+                !> @param[in]   this    reference to the map object, automatically set by fortran
+                !> @param[in]   ind     the index of the searched element.
+                !> @param[out]  value   the value of this list element 
+                subroutine list_get_intrinsic(this, ind, value)
+                    class(list) :: this
+                    ${indT} :: ind
+                    ${T} :: value
 
-                !local variables
-                class(*), pointer :: ivalue
+                    !local variables
+                    class(*), pointer :: ivalue
 
-                ! get the value as class(*) pointer
-                ivalue => this%get(ind)
+                    ! get the value as class(*) pointer
+                    ivalue => this%get(ind)
 
-                ! anything found
-                if (.not.associated(ivalue)) then
-                    call fplus_error_print("no value stored at " // type_to_string(ind) // " in list.", "list%get_intrinsic", FPLUS_ERR)
-                end if
+                    ! anything found
+                    if (.not.associated(ivalue)) then
+                        call fplus_error_print("no value stored at " // type_to_string(ind) // " in list.", "list%get_intrinsic", FPLUS_ERR)
+                    end if
 
-                ! convert to the type of value
-                select type (ivalue)
-                    type is (${T})
-                        value = ivalue
-                    class default
-                        call fplus_error_print("wrong datatype", "list%get_intrinsic", FPLUS_ERR)
-                end select
-            end subroutine
+                    ! convert to the type of value
+                    select type (ivalue)
+                        type is (${T})
+                            value = ivalue
+                        class default
+                            call fplus_error_print("wrong datatype", "list%get_intrinsic", FPLUS_ERR)
+                    end select
+                end subroutine
+            !$FP end do
         !$FP end do
     !$FP end template
 
@@ -499,63 +513,74 @@ contains
         end if
     end subroutine
 
-    !> @public
-    !> @brief       Remove an element at the specified position
-    !> @param[in]   this    reference to the list object, automatically set by fortran
-    !> @param[in]   ind     the index to remove
-    subroutine list_remove(this, ind)
-        class(list) :: this
-        integer (kind=8), intent(in) :: ind
+    !$FP template list_remove
+        !$FP indT = {integer (kind=4)} {integer (kind=8)}
+        !$FP do i = 1, 2
+            !> @public
+            !> @brief       Remove an element at the specified position
+            !> @param[in]   this    reference to the list object, automatically set by fortran
+            !> @param[in]   ind     the index to remove
+            subroutine list_remove(this, ind)
+                class(list) :: this
+                ${indT(i)}, intent(in) :: ind
 
-        ! local variables
-        class(element), pointer :: elem
+                ! local variables
+                class(element), pointer :: elem
 
-        ! get the element stored at the given index
-        if (ind < 1 .or. ind > this%nelements) call fplus_error_print("index out of bounds", "list%remove")
-        elem => this%get_element(ind)
-        if (.not.associated(elem)) call fplus_error_print("unexpected error", "list%remove")
+                ! get the element stored at the given index
+                if (ind < 1 .or. ind > this%nelements) call fplus_error_print("index out of bounds", "list%remove")
+                !$FP if (i == 1) then
+                    if (this%length_is_long()) call fplus_error_print("list to long for integer (kind=4) index variables!", "list%remove")
+                    elem => this%get_element(int(ind,8))
+                !$FP else
+                    elem => this%get_element(ind)
+                !$FP end if
 
-        ! change the links in the next and previous element
-        if (associated(elem%prevElement) .and. associated(elem%nextElement)) then
-            print*, ind, this%last_index_in_get, this%length()
-            elem%prevElement%nextElement => elem%nextElement
-            elem%nextElement%prevElement => elem%prevElement
-        else if (associated(elem%prevElement) .and. .not. associated(elem%nextElement)) then
-            elem%prevElement%nextElement => null()
-            this%lastElement => elem%prevElement
-        else if (.not. associated(elem%prevElement) .and. associated(elem%nextElement)) then
-            elem%nextElement%prevElement => null()
-            this%firstElement => elem%nextElement
-        else
-            this%firstElement => null()
-            this%lastElement => null()
-        end if
+                if (.not.associated(elem)) call fplus_error_print("unexpected error", "list%remove")
 
-        ! change the last element accessed in get
-        if (associated(elem%nextElement)) then
-            ! change the link to the element, the index is not changed
-            this%last_element_in_get => elem%nextElement
-        else if (associated(elem%prevElement)) then
-            ! this is the last element, change the element as well as the index
-            this%last_index_in_get = ind -1
-            this%last_element_in_get => elem%prevElement
-        else
-            ! there was only this element in the list
-            this%last_index_in_get = 0
-            this%last_element_in_get => null()
-        end if
+                ! change the links in the next and previous element
+                if (associated(elem%prevElement) .and. associated(elem%nextElement)) then
+                    print*, ind, this%last_index_in_get, this%length()
+                    elem%prevElement%nextElement => elem%nextElement
+                    elem%nextElement%prevElement => elem%prevElement
+                else if (associated(elem%prevElement) .and. .not. associated(elem%nextElement)) then
+                    elem%prevElement%nextElement => null()
+                    this%lastElement => elem%prevElement
+                else if (.not. associated(elem%prevElement) .and. associated(elem%nextElement)) then
+                    elem%nextElement%prevElement => null()
+                    this%firstElement => elem%nextElement
+                else
+                    this%firstElement => null()
+                    this%lastElement => null()
+                end if
 
-        ! deallocate the value, if it is a copy
-        if (elem%valueIsCopy) then
-            deallocate(elem%value)
-        end if
+                ! change the last element accessed in get
+                if (associated(elem%nextElement)) then
+                    ! change the link to the element, the index is not changed
+                    this%last_element_in_get => elem%nextElement
+                else if (associated(elem%prevElement)) then
+                    ! this is the last element, change the element as well as the index
+                    this%last_index_in_get = ind -1
+                    this%last_element_in_get => elem%prevElement
+                else
+                    ! there was only this element in the list
+                    this%last_index_in_get = 0
+                    this%last_element_in_get => null()
+                end if
 
-        ! deallocate the element itself
-        deallocate(elem)
+                ! deallocate the value, if it is a copy
+                if (elem%valueIsCopy) then
+                    deallocate(elem%value)
+                end if
 
-        ! reduce the number of stored elements
-        this%nelements = this%nelements - 1
-    end subroutine
+                ! deallocate the element itself
+                deallocate(elem)
+
+                ! reduce the number of stored elements
+                this%nelements = this%nelements - 1
+            end subroutine
+        !$FP end do
+    !$FP end template
 
     !> @public
     !> @brief   Returns the number of elements in this list
@@ -563,6 +588,18 @@ contains
     integer (kind=8) function list_length(this)
         class(list) :: this
         list_length = this%nelements
+    end function
+
+    !> @public
+    !> @brief   Checks if the number of elements in the list is small enough for a integer (kind=4) index variable
+    !> @return  number of elements
+    logical function list_length_is_long(this)
+        class(list) :: this
+        if (this%nelements > 2147483647_8) then
+            list_length_is_long = .true.
+        else
+            list_length_is_long = .false.
+        end if        
     end function
 
     !> @public
