@@ -6,7 +6,7 @@ program test_list
     type(list) :: testlist
     class(*), pointer :: testvalue
     type(listiterator) :: testiter
-    integer :: i
+    integer (kind=8) :: i
     real (kind=8) :: testnumber
 
     ! create a new list
@@ -44,7 +44,7 @@ program test_list
     print*, ""
 
     print*, "Add an value (0.5) at the first position"
-    call testlist%add(0.5, ind=1)
+    call testlist%add(0.5, ind=1_8)
     print*, testlist%to_string()
 
     print*, "Add an value (8) at the last position"
@@ -52,13 +52,13 @@ program test_list
     print*, testlist%to_string()
 
     print*, "Add an value (7.5) at the index 6"
-    call testlist%add(7.5, ind=6)
+    call testlist%add(7.5, ind=6_8)
     print*, testlist%to_string()
 
-    print*, "The value at the 4th position: " // trim(type_to_string(testlist%get(4))) // char(10)
+    print*, "The value at the 4th position: " // trim(type_to_string(testlist%get(4_8))) // char(10)
 
     print*, "Remove the first element"
-    call testlist%remove(1)
+    call testlist%remove(1_8)
     print*, testlist%to_string()
 
     print*, "Remove the last element"
@@ -66,10 +66,10 @@ program test_list
     print*, testlist%to_string()
 
     print*, "Remove the element at the 5th position"
-    call testlist%remove(5)
+    call testlist%remove(5_8)
     print*, testlist%to_string()
 
-    print*, "The value at the 4th position: " // trim(type_to_string(testlist%get(4))) // char(10)
+    print*, "The value at the 4th position: " // trim(type_to_string(testlist%get(4_8))) // char(10)
 
     print*, "Use an iterator to iterate through the list"
     print*, "-> at first forwards"

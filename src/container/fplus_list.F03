@@ -23,7 +23,7 @@ module fplus_list
     ! a type for the linked list itself
     type, extends (object), public :: list
         ! variables
-        integer, private :: nelements
+        integer (kind=8), private :: nelements
         class(element), pointer, private :: firstElement => null()
         class(element), pointer, private :: lastElement => null()
         !> @brief   the last indext acessed by list%get ist stored here, the variable
@@ -177,11 +177,11 @@ contains
         class(list) :: this
         class(*), target :: value
         logical, optional :: copy
-        integer, optional :: ind
+        integer (kind=8), optional :: ind
 
         ! local variables
         logical :: copyValue
-        integer :: new_index
+        integer (kind=8) :: new_index
         class(element), pointer :: current_element, added_element
 
         ! was this list initialized?
@@ -250,7 +250,7 @@ contains
     !> @return      Returns the value if the index is in the list, otherwise a null-pointer.
     function list_get(this, ind) result (res)
         class(list) :: this
-        integer :: ind
+        integer (kind=8) :: ind
         class(*), pointer :: res
 
         ! local variables
@@ -276,7 +276,7 @@ contains
             !> @param[out]  value   the value of this list element 
             subroutine list_get_intrinsic(this, ind, value)
                 class(list) :: this
-                integer :: ind
+                integer (kind=8) :: ind
                 ${T} :: value
 
                 !local variables
@@ -314,7 +314,7 @@ contains
                 integer :: res
 
                 !local variables
-                integer :: index
+                integer (kind=8) :: index
                 ${T} :: lvalue
                 class(*), pointer :: ivalue
 
@@ -349,7 +349,7 @@ contains
     !> @return      Returns the element if the index is in the list, otherwise a null-pointer.
     function list_get_element(this, ind) result (res)
         class(list) :: this
-        integer :: ind
+        integer (kind=8) :: ind
         class(element), pointer :: res
 
         ! local variables
@@ -505,7 +505,7 @@ contains
     !> @param[in]   ind     the index to remove
     subroutine list_remove(this, ind)
         class(list) :: this
-        integer, intent(in) :: ind
+        integer (kind=8), intent(in) :: ind
 
         ! local variables
         class(element), pointer :: elem
@@ -560,7 +560,7 @@ contains
     !> @public
     !> @brief   Returns the number of elements in this list
     !> @return  number of elements
-    integer function list_length(this)
+    integer (kind=8) function list_length(this)
         class(list) :: this
         list_length = this%nelements
     end function
@@ -574,7 +574,7 @@ contains
         ! local variables
         type (listiterator), allocatable :: iter
         class (*), pointer :: value
-        integer :: i
+        integer (kind=8) :: i
 
         ! allocate the array
         if (.not.allocated(out_array)) then
@@ -612,7 +612,7 @@ contains
         ! local variables
         type (listiterator), allocatable :: iter
         class (*), pointer :: value
-        integer :: i
+        integer (kind=8):: i
 
         ! allocate the array
         if (.not.allocated(out_array)) then
@@ -652,7 +652,7 @@ contains
         ! local variables
         type (listiterator), allocatable :: iter
         class (*), pointer :: value
-        integer :: i
+        integer (kind=8) :: i
 
         ! allocate the array
         if (.not.allocated(out_array)) then
@@ -691,7 +691,7 @@ contains
         ! local variables
         type (listiterator), allocatable :: iter
         class (*), pointer :: value
-        integer :: i
+        integer (kind=8):: i
 
         ! allocate the array
         if (.not.allocated(out_array)) then

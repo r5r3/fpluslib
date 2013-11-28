@@ -37,11 +37,11 @@ module fplus_map
     type, extends(object), public :: map
         class(nodepointer), dimension(:), pointer, private :: table => null()
         ! number of elements currently stored in the map
-        integer, private :: nelements
+        integer (kind=8), private :: nelements
         ! the initial size of the underlying array
-        integer, private :: initialSize
+        integer (kind=8), private :: initialSize
         ! @brief    current capacity of the map underlying array
-        integer, private :: capacity
+        integer (kind=8), private :: capacity
     contains
         !> @brief   Associates the specified value with the specified key in this map.
         procedure, public :: add => map_add
@@ -351,18 +351,20 @@ contains
         class(map) :: this
         integer :: i
         ! loop over the complete table
-        do i = 1, this%capacity
-            ! is here an element?
-            if (associated(this%table(i)%thenode)) then
-                call this%table(i)%thenode%release()
-                deallocate(this%table(i)%thenode)
-                this%table(i)%length = 0
-            end if
-        end do
-        ! remove the table itself
-        deallocate (this%table)
-        this%nelements = 0
+        if (associated(this%table)) then
+            do i = 1, this%capacity
+                ! is here an element?
+                if (associated(this%table(i)%thenode)) then
+                    call this%table(i)%thenode%release()
+                    deallocate(this%table(i)%thenode)
+                    this%table(i)%length = 0
+                end if
+            end do
+            ! remove the table itself
+            deallocate (this%table)
+        end if
         ! reset the capacity to the initial capacity
+        this%nelements = 0
         this%capacity = this%initialSize
     end subroutine
 
@@ -388,6 +390,12 @@ contains
 
         ! if nothing is found, return a null-pointer
         map_get => null()
+
+        ! is the table completely empty?
+        if (.not.associated(this%table)) then
+            return
+        end if
+
         ! calculate the hash code for the key
         hash = calculateHash(key)
         ! find the value in the table
@@ -462,7 +470,7 @@ contains
                     this%nelements = this%nelements -1
                     ! resize the underlying table if needed
                     if (this%nelements < this%capacity * 0.01) then
-                        call this%resize(int(this%capacity * 0.01))
+                        call this%resize(int(this%capacity * 0.01, 8))
                     end if
                     ! leave the loop
                     exit
@@ -479,7 +487,7 @@ contains
     !> @brief       Returns the number of elements in this list
     !> @param[in]   this    reference to the map object, automatically set by fortran
     !> @return      number of elements
-    integer function map_length(this)
+    integer (kind=8) function map_length(this)
         class(map) :: this
         map_length = this%nelements
     end function
@@ -492,7 +500,7 @@ contains
     !> @param[in]   newsize the new size of the underlying table
     subroutine map_resize(this, newsize)
         class(map) :: this
-        integer, intent(in) :: newsize
+        integer (kind=8), intent(in) :: newsize
 
         ! local variables
         class(nodepointer), dimension(:), pointer :: oldtable

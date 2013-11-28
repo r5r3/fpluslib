@@ -1,5 +1,6 @@
 !> @brief   Functions and types for string manipulation
 module fplus_strings
+    use, intrinsic :: iso_c_binding 
     use fplus_object
     use fplus_hashcode
     implicit none
@@ -9,6 +10,8 @@ module fplus_strings
         !> @brief   the actual string content
         character (len=1000), public :: chars
     contains
+        !> @brief   copy a c-string to this string object
+        procedure, public :: set_cstr => string_set_cstr
         !> @brief   Returns a string representation of this object
         procedure, public :: to_string => string_to_string
         !> @brief   Calculate the hash code for this object
@@ -142,4 +145,28 @@ contains
                 res = "unknown type in type_to_string"
         end select
     end function
+
+    !> @brief   copy a c-string to this string object
+    subroutine string_set_cstr(this, cstr)
+        class(string) :: this
+        character (kind=C_char) :: cstr(*)
+
+        ! local variables
+        integer :: i
+        logical :: in_cstr
+
+        ! loop over the length of this string
+        in_cstr = .true.
+        do i = 1, len(this%chars)
+            if (cstr(i) == C_null_char) then
+                in_cstr = .false.
+            end if
+            if (in_cstr) then
+                this%chars(i:i) = cstr(i)
+            else
+                this%chars(i:i) = ' '
+            end if
+        end do
+    end subroutine
+
 end module fplus_strings

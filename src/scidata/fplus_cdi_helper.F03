@@ -198,7 +198,7 @@ contains
                 character (len=1), intent(in), optional :: status
 
                 ! local variables
-                integer :: i, lsize
+                integer (kind=8) :: i, lsize
                 type(fileinfo), pointer :: finfo
                 type(path) :: onefile
 
@@ -544,7 +544,7 @@ contains
         class(datapool) :: this 
 
         ! local variables
-        integer :: i
+        integer (kind=8) :: i
         class(*), pointer :: ptr
         class(fileinfo), pointer :: fptr
 
@@ -779,7 +779,7 @@ contains
         class(varinfo), pointer :: ptr, ptr2
         class(*), pointer :: temp
         integer :: gridsize
-        integer :: i
+        integer (kind=8) :: i
 
         ! leave this subroutine directly if the variable definition is already fixed
         if (this%fixed) return
@@ -898,7 +898,8 @@ contains
         type(listiterator), allocatable :: iter
         class(varinfo), pointer :: ptr
         class(*), pointer :: temp
-        integer :: status, index
+        integer :: status
+        integer (kind=8) :: index
         character (len=100) :: errmsg
 
         ! loop over all variables in this file
@@ -1559,7 +1560,7 @@ contains
     !> @param[in]   this    reference to the varinfo object, automatically set by fortran
     subroutine varinfo_clear(this)
         class(varinfo) :: this
-        integer :: index
+        integer (kind=8) :: index
         if (allocated(this%coord_time)) deallocate (this%coord_time)
         if (allocated(this%coord_lon))  deallocate (this%coord_lon)
         if (allocated(this%coord_lat))  deallocate (this%coord_lat)

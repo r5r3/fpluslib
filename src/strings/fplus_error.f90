@@ -7,7 +7,7 @@ module fplus_error
     private
 
     ! public precedures
-    public :: fplus_error_print
+    public :: fplus_error_print, fplus_error_check
 
     ! constants for error types
     integer, parameter, public :: FPLUS_ERR   = 1
@@ -23,6 +23,31 @@ module fplus_error
     end interface
 
 contains
+
+    !> @brief       Check the return code of a function (MPI, ADLB, etc..)
+    !> @param[in]   code        the returned error code of the function (0 = no error)
+    !> @param[in]   procname    name of the checked function
+    !> @param[in]   valid       the valid value of the return code, default = 0
+    subroutine fplus_error_check(code, procname, valid)
+        integer :: code
+        character (len=*) :: procname
+        integer, optional :: valid
+
+        ! local variables
+        character (len=40) :: msg
+        integer :: ivalid
+
+        if (present(valid)) then
+            ivalid = valid
+        else
+            ivalid = 0
+        end if
+
+        if (code /= ivalid) then
+            write (msg, "(A,A,A)") "error code ", trim(type_to_string(code)), " returned."
+            call fplus_error_print(msg, procname, FPLUS_ERR)
+        end if
+    end subroutine
 
     !> @brief       Print an error message to STDERR
     !> @param[in]   msg         The message to print.
