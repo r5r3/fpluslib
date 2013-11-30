@@ -589,6 +589,7 @@ contains
         real (kind=8), dimension(:), allocatable :: timeaxis
         integer :: tsID, stat, vdate, vtime, varID, zaxisID, gridID, taxisID, nlon, nlat, nzval
         character (len=:), allocatable :: extension
+        character (len=200) :: cdi_error_text
         info => null()
         
         ! allocate memory for the new object
@@ -617,7 +618,9 @@ contains
                 ! open the file with CDI
                 res%streamID = streamOpenRead(filename%get_cstr_name())
                 if (res%streamID < 0) then
-                    call fplus_error_print(cdiStringError(res%streamID), "new_fileinfo")
+                    cdi_error_text = cdiStringError(res%streamID)
+                    call ctrim(cdi_error_text)
+                    call fplus_error_print(cdi_error_text, "new_fileinfo")
                 end if
 
                 ! Get the variable list of the file
@@ -746,7 +749,9 @@ contains
                 ! open type file
                 res%streamID = streamOpenWrite(filename%get_cstr_name(), res%filetype)
                 if (res%streamID < 0) then
-                    call fplus_error_print(cdiStringError(res%streamID), "new_fileinfo")
+                    cdi_error_text = cdiStringError(res%streamID)
+                    call ctrim(cdi_error_text)
+                    call fplus_error_print(cdi_error_text, "new_fileinfo")
                 end if
                 ! set the default compression level 5 for netcdf 4files
                 if (res%filetype == FILETYPE_NC4) then
