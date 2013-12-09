@@ -519,28 +519,35 @@ contains
             !> @public
             !> @brief       Remove an element at the specified position
             !> @param[in]   this    reference to the list object, automatically set by fortran
-            !> @param[in]   ind     the index to remove
+            !> @param[in]   ind     the index to remove, use -1 to remove the last element
             subroutine list_remove(this, ind)
                 class(list) :: this
                 ${indT(i)}, intent(in) :: ind
 
                 ! local variables
                 class(element), pointer :: elem
+                ${indT(i)} :: ind_intern
+
+                ! remove the last element? 
+                if (ind == -1) then 
+                    ind_intern = this%nelements
+                else
+                    ind_intern = ind
+                end if
 
                 ! get the element stored at the given index
-                if (ind < 1 .or. ind > this%nelements) call fplus_error_print("index out of bounds", "list%remove")
+                if (ind_intern < 1 .or. ind_intern > this%nelements) call fplus_error_print("index out of bounds", "list%remove")
                 !$FP if (i == 1) then
                     if (this%length_is_long()) call fplus_error_print("list to long for integer (kind=4) index variables!", "list%remove")
-                    elem => this%get_element(int(ind,8))
+                    elem => this%get_element(int(ind_intern,8))
                 !$FP else
-                    elem => this%get_element(ind)
+                    elem => this%get_element(ind_intern)
                 !$FP end if
 
                 if (.not.associated(elem)) call fplus_error_print("unexpected error", "list%remove")
 
                 ! change the links in the next and previous element
                 if (associated(elem%prevElement) .and. associated(elem%nextElement)) then
-                    print*, ind, this%last_index_in_get, this%length()
                     elem%prevElement%nextElement => elem%nextElement
                     elem%nextElement%prevElement => elem%prevElement
                 else if (associated(elem%prevElement) .and. .not. associated(elem%nextElement)) then
@@ -560,7 +567,7 @@ contains
                     this%last_element_in_get => elem%nextElement
                 else if (associated(elem%prevElement)) then
                     ! this is the last element, change the element as well as the index
-                    this%last_index_in_get = ind -1
+                    this%last_index_in_get = ind_intern -1
                     this%last_element_in_get => elem%prevElement
                 else
                     ! there was only this element in the list
