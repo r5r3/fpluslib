@@ -449,6 +449,9 @@ contains
         ! internal variables
         real (kind=8) :: basetime
         
+        ! init the module if needed
+        if (.not. isInitialized) call timehelper_init()
+
         ! calculate the time in the internal unit used by udunits
         basetime = f_ut_encode_time(year,month,day,hour,minute,second)
         
@@ -465,6 +468,9 @@ contains
         real (kind=8), intent(out) :: second
         ! interval variables
         real (kind=8) :: basetime, resolution
+
+        ! init the module if needed
+        if (.not. isInitialized) call timehelper_init()
 
         ! convert the seconds since 1970 to the internal unit used by udunits
         basetime = f_cv_convert_double(sec1970_to_sec, sec_since_1970)

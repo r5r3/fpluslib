@@ -9,7 +9,7 @@ module fplus_geo_tools
     implicit none
     private
     
-    public :: rot_lon_to_range, lon_is_cyclic, point_in_polygon
+    public :: rot_lon_to_range, lon_is_cyclic, point_in_polygon, geo_distance 
     
     !> @public
     !> @brief       Rotate a cyclic array as fas as needed to cover a given longitude range
@@ -22,6 +22,10 @@ module fplus_geo_tools
     !> @public
     !> @brief       check if a point is located inside of a polygone
     !$FP interface template point_in_polygon
+
+    !> @public
+    !> @brief       calculate the distance of two points on earth
+    !$FP interface template geo_distance
 
 contains
 
@@ -172,6 +176,32 @@ contains
                     if (((polyy(i)>testy) .neqv. (polyy(j)>testy)) .and. (testx < (polyx(j)-polyx(i)) * (testy-polyy(i)) / (polyy(j)-polyy(i)) + polyx(i))) res = .not. res;
                     j = i
                 end do
+            end function
+        !$FP end do
+    !$FP end template
+
+    !$FP template geo_distance
+        !$FP do T = {real (kind=4)} {real (kind=8)}
+    
+            !> @public
+            !> @brief       Calculate the distance between two points in the glob. Not exact, only vague approximation!
+            !> @param[in]   lon1    longitude of the first point
+            !> @param[in]   lat1    latitude of the first point
+            !> @param[in]   lon2    longitude of the second point
+            !> @param[in]   lat2    latitude of the second point         
+            !> @return      distance in kilometers   
+            function geo_distance(lon1, lat1, lon2, lat2) result (res)
+                ${T}, intent(in) :: lon1, lat1, lon2, lat2
+                ${T} :: res
+
+                ! local variables
+                ${T} :: b, r_earth, xmult
+
+                ! the actual calculation
+                r_earth=6371.
+                b = atan(1.0)/45.0
+                xmult = cos((lat1+lat2)*b/2.)*cos((lat1+lat2)*b/2.)
+                res = r_earth*sqrt((lon1-lon2)*(lon1-lon2)*b*b*xmult+(lat1-lat2)*(lat1-lat2)*b*b)
             end function
         !$FP end do
     !$FP end template

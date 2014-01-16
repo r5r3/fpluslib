@@ -25,6 +25,8 @@ module fplus_cdi_helper
     contains
         !> @brief   Get a pointer to the variable information for a given code and z-axsis.
         procedure, public :: get_variable => datapool_get_variable
+        !> @brief   get a list of all variables in a datapool
+        procedure, public :: get_all_variables => datapool_get_all_variables
         !> @brief   Create a new variable information object for writing
         procedure, public :: get_new_variable => datapool_get_new_variable
         !> @brief   Release the memory used by the datapool. That includes all variables
@@ -303,7 +305,7 @@ contains
                 ! one of the parameters name, code, or standard_name has to match
                 if (present(code) .and. code == varptr%code) matching_qualifier = matching_qualifier + 1
                 if (present(name) .and. trim(name) == trim(varptr%name)) matching_qualifier = matching_qualifier + 1
-                if (present(std_name) .and. trim(std_name) == trim(varptr%standard_name)) matching_qualifier = matching_qualifier + 1
+                if (present(std_name) .and. trim(std_name) == trim(varptr%standard_name) .and. len_trim(std_name) > 0) matching_qualifier = matching_qualifier + 1
                 if (matching_qualifier == 0) cycle
                 ! add the variable to the list of matches
                 call matches%add(varptr)
@@ -468,6 +470,62 @@ contains
             end if
         end if
     end function
+
+
+    !> @public 
+    !> @brief       Get a list with all variables in a datapool. the same variable form different files if returned only once as merged variable
+    !> @param[in]   this        reference to the datapool object, automatically set by fortran
+    function datapool_get_all_variables(this) result (res)
+        class(datapool) :: this
+        type(list) :: res
+
+        ! local variables
+        class(*), pointer :: onevar
+        class(*), pointer :: onefile
+        class(varinfo), pointer :: tempvar
+        type(list) :: allvars
+        integer :: fi, vi
+
+        ! create an empty list for all variables in all files
+        allvars = new_list()
+        res = new_list()
+
+        ! loop over all files to find all variables
+        do fi = 1, this%files%length()
+            onefile => this%files%get(fi)
+            ! loop over all variables of the file
+            select type (onefile)
+                type is (fileinfo)
+                    do vi = 1, onefile%variables%length()
+                        onevar => onefile%variables%get(vi)
+                        select type (onevar)
+                            type is (varinfo)
+                                call allvars%add(onevar)
+                        end select
+                    end do
+            end select
+        end do
+
+        ! loop over all variables to figure out if some of them could be merged
+        do while (allvars%length() > 0)
+            onevar => allvars%get(1)
+            select type (onevar)
+                type is (varinfo)
+                    ! get this variable from the pool with the get funciton, that will merge if needed
+                    tempvar => this%get_variable(name=onevar%name, code=onevar%code, std_name=onevar%standard_name, zaxis=onevar%zaxistype)
+                    if (allocated(tempvar%merged_var_parts)) then
+                        call fplus_error_print("funciton not yet implemented for multiple files", "datapool%get_all_variables", FPLUS_ERR)
+                    else
+                        ! this variable if not merged. remove it from the list of all vars and add it to the result list
+                        call allvars%remove(1)
+                        call res%add(tempvar)
+                    end if
+            end select
+        end do
+
+        ! clean up 
+        call allvars%clear()
+    end function 
 
     !> @public
     !> @brief       Create a new variable information object for writing
@@ -852,12 +910,12 @@ contains
                 do i = 1, this%variables%length()
                     temp => this%variables%get(i)
                     ptr2 => to_varinfo(temp)
-                    if (ptr2%zaxisID == -1 &
-                        .and. ptr2%zaxistype == ptr%zaxistype &
-                        .and. allocated(ptr2%coord_z) &
-                        .and. allocated(ptr%coord_z) &
-                        .and. size(ptr2%coord_z) == size(ptr%coord_z) & 
-                        .and. all(ptr2%coord_z == ptr%coord_z)) then
+                    if (ptr2%zaxisID /= -1) cycle
+                    if (ptr2%zaxistype /= ptr%zaxistype) cycle
+                    if (.not. allocated(ptr2%coord_z)) cycle
+                    if (.not. allocated(ptr%coord_z)) cycle
+                    if (size(ptr2%coord_z) /= size(ptr%coord_z)) cycle 
+                    if (all(ptr2%coord_z == ptr%coord_z)) then
                         ptr2%zaxisID = ptr%zaxisID
                     end if
                 end do
@@ -1742,7 +1800,7 @@ contains
     function varinfo_get_x_size(this) result (res)
         class(varinfo) :: this
         integer :: res
-        if (this%gridtype == GRID_LONLAT .or. this%gridtype == GRID_UNSTRUCTURED .or. this%gridtype == GRID_GAUSSIAN) then
+        if (this%gridtype == GRID_LONLAT .or. this%gridtype == GRID_UNSTRUCTURED .or. this%gridtype == GRID_GAUSSIAN .or. this%gridtype == GRID_GENERIC) then
             res = this%nlon
         else
             call fplus_error_print("unsupported grid: " // trim(type_to_string(this%gridtype)), "get_x_size")
@@ -1756,7 +1814,7 @@ contains
     function varinfo_get_y_size(this) result (res)
         class(varinfo) :: this
         integer :: res
-        if (this%gridtype == GRID_LONLAT .or. this%gridtype == GRID_GAUSSIAN) then
+        if (this%gridtype == GRID_LONLAT .or. this%gridtype == GRID_GAUSSIAN .or. this%gridtype == GRID_GENERIC) then
             res = this%nlat
         else if (this%gridtype == GRID_UNSTRUCTURED) then
             res = 1

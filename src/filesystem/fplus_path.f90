@@ -62,6 +62,12 @@ module fplus_path
             character (kind=C_char) :: filename(*)
             integer (kind=C_int) :: res
         end function
+        function realpath(file_name, resolved_name) result(res) bind(C,name="realpath")
+            import :: C_char, C_ptr
+            character (kind=C_char) :: file_name(*)
+            character (kind=C_char) :: resolved_name(*)
+            type(C_ptr) :: res
+        end function
     end interface
 
 contains
@@ -221,17 +227,18 @@ contains
     !> @param[in]   this        reference to the path object, automatically set by fortran
     !> @param[in]   max_depth   maximal level of subdirectories to brows. 1=no subdirectiries, default=1
     !> @param[in]   only_files  if .true., only files and no folders are returned. Default=.false.
+    !> @param[in]   abspath     return the absolute filename instead of name relative to this path. Default=.false.
     !> @return      list of path objects
-    recursive function path_list(this, max_depth, only_files) result(res)
+    recursive function path_list(this, max_depth, only_files, abspath) result(res)
         class(path) :: this
         integer, optional :: max_depth
-        logical, optional :: only_files
+        logical, optional :: only_files, abspath
         type(list) :: res
 
         ! local variables
         integer :: max_depth_intern, ierr, isdir, i
         logical :: only_files_intern
-        type(C_ptr) :: dir_ptr
+        type(C_ptr) :: dir_ptr, resolved_name
         character(len=1000) :: filename
         type(path) :: direntry, subdir, child
         type(list) :: children
@@ -267,7 +274,7 @@ contains
             if (isdir == 1 .and. max_depth_intern > 1) then
                 ! get all children
                 subdir = new_path(trim(this%name) // "/" // trim(direntry%name))
-                children = subdir%list(max_depth_intern-1)
+                children = subdir%list(max_depth_intern-1, only_files_intern, .false.)
                 ! loop over all children
                 do i = 1, children%length()
                     temp => children%get(i)
@@ -283,6 +290,19 @@ contains
 
         ! close the directory again
         call closedir(dir_ptr)
+
+        ! get the absolute paths of the files, if requested
+        if (present(abspath) .and. abspath .eqv. .true.) then
+            do i = 1, res%length()
+                temp => res%get(i)
+                select type(temp)
+                    type is (path)
+                        filename = trim(this%name) // "/" // trim(temp%name)
+                        resolved_name = realpath(filename, temp%name)
+                        call ctrim(temp%name)
+                end select
+            end do
+        end if
     end function
 
     !> @public
