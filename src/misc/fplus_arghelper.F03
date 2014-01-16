@@ -11,8 +11,8 @@ module fplus_arghelper
 contains
 
     !$FP template get_argument
-        !$FP atype = {character(len=*)} {type(string)} {type(path)} {type(list)} {logical} {real, dimension(:), allocatable} {integer}
-        !$FP do i = 1, 7
+        !$FP atype = {character(len=*)} {type(string)} {type(path)} {type(list)} {logical} {real, dimension(:), allocatable} {integer} {real}
+        !$FP do i = 1, 8
             !> @brief       get one or more values from a flag
             !> @param       flag    the flag to look for. Example: "--type"
             !> @param       values  get one or more values. If values is of type string or character, 
@@ -88,7 +88,7 @@ contains
                             call temp4%add(temp5, copy=.true.)
                             values = temp4
                         !$FP end if
-                        !$FP if (i == 7) then
+                        !$FP if (i == 7 .or. i == 8) then
                             read (temp,*) values
                         !$FP end if
                     end if
