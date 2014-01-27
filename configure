@@ -641,6 +641,10 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 with_cdi
+with_grib_api
+with_jasper
+with_hdf5
+with_szip
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1261,6 +1265,14 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-cdi              support for climat data interface [default=no]
+  --with-grib_api         this parameter is needed when cdi was compiled with
+                          grib api support [default=no]
+  --with-jasper           this parameter is needed when grib_api was compiled
+                          with jasper support [default=no]
+  --with-hdf5             this parameter is needed when cdi was compiled with
+                          hdf5 support [default=no]
+  --with-szip             this parameter is needed when netcdf was compiled
+                          with szip support [default=no]
 
 Some influential environment variables:
   CC          C compiler command
@@ -1845,6 +1857,8 @@ if test "x$OS" = xDarwin; then :
 
 else
 
+        as_fn_append CFLAGS " -I$(nc-config --includedir)"
+        as_fn_append LDFLAGS " -L$(nc-config --prefix)/lib -Wl,-rpath=$(nc-config --prefix)/lib"
 		DYLIBEXT="so"
 
 
@@ -3155,17 +3169,17 @@ echo "---------------------------------------------------------------"
 # Check whether --with-cdi was given.
 if test "${with_cdi+set}" = set; then :
   withval=$with_cdi;
-            	if test "x$with_cdi" = xyes; then :
+                if test "x$with_cdi" = xyes; then :
 
 else
 
-		            	as_fn_append LDFLAGS " -L$with_cdi/lib"
-						if test "x$OS" = xLinux; then :
+                        as_fn_append LDFLAGS " -L$with_cdi/lib"
+                        if test "x$OS" = xLinux; then :
 
-								as_fn_append LDFLAGS " -Wl,-rpath=$with_cdi/lib"
+                                as_fn_append LDFLAGS " -Wl,-rpath=$with_cdi/lib"
 
 fi
-		            	as_fn_append FCFLAGS " -I$with_cdi/include"
+                        as_fn_append FCFLAGS " -I$with_cdi/include"
 
 
 fi
@@ -3176,18 +3190,350 @@ fi
 
 
 
+# Check whether --with-grib_api was given.
+if test "${with_grib_api+set}" = set; then :
+  withval=$with_grib_api;
+                if test "x$with_grib_api" = xyes; then :
+
+else
+
+                        as_fn_append LDFLAGS " -L$with_grib_api/lib"
+                        if test "x$OS" = xLinux; then :
+
+                                as_fn_append LDFLAGS " -Wl,-rpath=$with_grib_api/lib"
+
+fi
+
+
+fi
+
+else
+  with_grib_api=no
+fi
+
+
+
+# Check whether --with-jasper was given.
+if test "${with_jasper+set}" = set; then :
+  withval=$with_jasper;
+                if test "x$with_jasper" = xyes; then :
+
+else
+
+                        as_fn_append LDFLAGS " -L$with_jasper/lib"
+                        if test "x$OS" = xLinux; then :
+
+                                as_fn_append LDFLAGS " -Wl,-rpath=$with_jasper/lib"
+
+fi
+
+
+fi
+
+else
+  with_jasper=no
+fi
+
+
+
+# Check whether --with-hdf5 was given.
+if test "${with_hdf5+set}" = set; then :
+  withval=$with_hdf5;
+                if test "x$with_hdf5" = xyes; then :
+
+else
+
+                        as_fn_append LDFLAGS " -L$with_hdf5/lib"
+                        if test "x$OS" = xLinux; then :
+
+                                as_fn_append LDFLAGS " -Wl,-rpath=$with_hdf5/lib"
+
+fi
+
+
+fi
+
+else
+  with_jasper=no
+fi
+
+
+
+# Check whether --with-szip was given.
+if test "${with_szip+set}" = set; then :
+  withval=$with_szip;
+                if test "x$with_szip" = xyes; then :
+
+else
+
+                        as_fn_append LDFLAGS " -L$with_szip/lib"
+                        if test "x$OS" = xLinux; then :
+
+                                as_fn_append LDFLAGS " -Wl,-rpath=$with_szip/lib"
+
+fi
+
+
+fi
+
+else
+  with_jasper=no
+fi
+
+
+
+
+if test "x$with_jasper" != xno; then :
+
+        echo "checking jasper support ... "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for jpc_encode in -ljasper" >&5
+$as_echo_n "checking for jpc_encode in -ljasper... " >&6; }
+if ${ac_cv_lib_jasper_jpc_encode+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ljasper
+         $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char jpc_encode ();
+int
+main ()
+{
+return jpc_encode ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_jasper_jpc_encode=yes
+else
+  ac_cv_lib_jasper_jpc_encode=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_jasper_jpc_encode" >&5
+$as_echo "$ac_cv_lib_jasper_jpc_encode" >&6; }
+if test "x$ac_cv_lib_jasper_jpc_encode" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBJASPER 1
+_ACEOF
+
+  LIBS="-ljasper $LIBS"
+
+else
+
+                { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-jasper was given, but test for jasper failed
+See \`config.log' for more details" "$LINENO" 5; }
+
+fi
+
+
+
+fi
+
+if test "x$with_hdf5" != xno; then :
+
+        echo "checking hdf5 support ... "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for H5D_close in -lhdf5" >&5
+$as_echo_n "checking for H5D_close in -lhdf5... " >&6; }
+if ${ac_cv_lib_hdf5_H5D_close+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lhdf5
+         $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char H5D_close ();
+int
+main ()
+{
+return H5D_close ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_hdf5_H5D_close=yes
+else
+  ac_cv_lib_hdf5_H5D_close=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_hdf5_H5D_close" >&5
+$as_echo "$ac_cv_lib_hdf5_H5D_close" >&6; }
+if test "x$ac_cv_lib_hdf5_H5D_close" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBHDF5 1
+_ACEOF
+
+  LIBS="-lhdf5 $LIBS"
+
+else
+
+                { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-hdf5 was given, but test for hdf5 failed
+See \`config.log' for more details" "$LINENO" 5; }
+
+fi
+
+
+
+fi
+
+if test "x$with_szip" != xno; then :
+
+        echo "checking szip support ... "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for szip_check_params in -lsz" >&5
+$as_echo_n "checking for szip_check_params in -lsz... " >&6; }
+if ${ac_cv_lib_sz_szip_check_params+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsz
+         $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char szip_check_params ();
+int
+main ()
+{
+return szip_check_params ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_sz_szip_check_params=yes
+else
+  ac_cv_lib_sz_szip_check_params=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_sz_szip_check_params" >&5
+$as_echo "$ac_cv_lib_sz_szip_check_params" >&6; }
+if test "x$ac_cv_lib_sz_szip_check_params" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBSZ 1
+_ACEOF
+
+  LIBS="-lsz $LIBS"
+
+else
+
+                { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-szip was given, but test for szip failed
+See \`config.log' for more details" "$LINENO" 5; }
+
+fi
+
+
+
+fi
+
+if test "x$with_grib_api" != xno; then :
+
+        echo "checking grib_api support ... "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for grib_check in -lgrib_api" >&5
+$as_echo_n "checking for grib_check in -lgrib_api... " >&6; }
+if ${ac_cv_lib_grib_api_grib_check+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lgrib_api
+         $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char grib_check ();
+int
+main ()
+{
+return grib_check ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_grib_api_grib_check=yes
+else
+  ac_cv_lib_grib_api_grib_check=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_grib_api_grib_check" >&5
+$as_echo "$ac_cv_lib_grib_api_grib_check" >&6; }
+if test "x$ac_cv_lib_grib_api_grib_check" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBGRIB_API 1
+_ACEOF
+
+  LIBS="-lgrib_api $LIBS"
+
+else
+
+                { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-grib_api was given, but test for grib_api failed
+See \`config.log' for more details" "$LINENO" 5; }
+
+fi
+
+
+
+fi
 
 if test "x$with_cdi" != xno; then :
 
-    	echo "checking cdi support ... "
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for vlistCreate in -lcdi" >&5
+        echo "checking cdi support ... "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for vlistCreate in -lcdi" >&5
 $as_echo_n "checking for vlistCreate in -lcdi... " >&6; }
 if ${ac_cv_lib_cdi_vlistCreate+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
 LIBS="-lcdi
-		 $LIBS"
+         $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -3226,7 +3572,7 @@ _ACEOF
 
 else
 
-				{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+                { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
 as_fn_error $? "--with-cdi was given, but test for cdi failed
 See \`config.log' for more details" "$LINENO" 5; }
