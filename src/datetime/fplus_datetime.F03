@@ -211,23 +211,6 @@ contains
         integer :: iyear, imonth, iday, ihour, iminute
         real (kind=8) :: isecond
 
-        ! add a day if present
-        if (present(day)) then
-            this%time_in_sec1970 = this%time_in_sec1970 + 86400 * day
-        end if
-        ! add a hour if present
-        if (present(hour)) then
-            this%time_in_sec1970 = this%time_in_sec1970 + 3600 * hour
-        end if
-        ! add a minute if present
-        if (present(minute)) then
-            this%time_in_sec1970 = this%time_in_sec1970 + 60 * minute
-        end if
-        ! add a second if present
-        if (present(second)) then
-            this%time_in_sec1970 = this%time_in_sec1970 + second
-        end if
-
         ! add a month or a year
         if (present(year) .or. present(month)) then
             ! calculate the currently stored date
@@ -252,6 +235,23 @@ contains
 
             ! convert back to seconds since 1970
             this%time_in_sec1970 = get_seconds_since_1970(iyear,imonth,iday,ihour,iminute,isecond)
+        end if
+
+        ! add a day if present
+        if (present(day)) then
+            this%time_in_sec1970 = this%time_in_sec1970 + 86400 * day
+        end if
+        ! add a hour if present
+        if (present(hour)) then
+            this%time_in_sec1970 = this%time_in_sec1970 + 3600 * hour
+        end if
+        ! add a minute if present
+        if (present(minute)) then
+            this%time_in_sec1970 = this%time_in_sec1970 + 60 * minute
+        end if
+        ! add a second if present
+        if (present(second)) then
+            this%time_in_sec1970 = this%time_in_sec1970 + second
         end if
 
     end subroutine
