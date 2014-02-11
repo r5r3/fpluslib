@@ -93,6 +93,11 @@ module fplus_cdi_helper
         ! is the x- or y-axsis flipped (starts with larger values?)
         logical :: coord_lon_flipped = .false.
         logical :: coord_lat_flipped = .false.
+        ! rotated lonlat-grid? (has nothing to do with rotated_by_npoints!)
+        logical :: grid_is_rotated = .false.
+        real (kind=8) :: grid_x_pole = 0.0_8
+        real (kind=8) :: grid_y_pole = 90.0_8
+        real (kind=8) :: grid_angle = 0
     contains
         !> @brief   Set the grib code for this variable
         procedure, public :: set_name => varinfo_set_name
@@ -774,6 +779,14 @@ contains
                         end if
                     end if
 
+                    ! is the grid rotated?
+                    if (gridIsRotated(gridID) /= 0) then
+                        info%grid_is_rotated = .true.
+                        info%grid_x_pole = gridInqXpole(gridID)
+                        info%grid_y_pole = gridInqYpole(gridID)
+                        info%grid_angle = gridInqAngle(gridID)                    
+                    end if
+
                     ! store the zaxis coordinates
                     info%nzval = zaxisInqSize(zaxisID)
                     allocate(info%coord_z(info%nzval))
@@ -873,6 +886,12 @@ contains
                     call gridDefYsize(ptr%gridID, ptr%nlat)
                     if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
                     if (allocated(ptr%coord_lon)) call gridDefYvals(ptr%gridID, ptr%coord_lat)
+                    ! rotated lonlat-grid?
+                    if (ptr%grid_is_rotated) then
+                        call gridDefXpole(ptr%gridID, ptr%grid_x_pole)
+                        call gridDefYpole(ptr%gridID, ptr%grid_y_pole)
+                        call gridDefAngle(ptr%gridID, ptr%grid_angle)
+                    end if
                 else if (ptr%gridtype == GRID_GENERIC) then
                     gridsize = 1
                     if (ptr%nlon > 0) gridsize = gridsize * ptr%nlon
@@ -1471,7 +1490,7 @@ contains
             else
                 ! get the dimensions of the array
                 values_shape = shape(values)
-                values_rank = size(values_shape)          
+                values_rank = size(values_shape)
             end if
             ! call the internal subroutine
             call this%varinfo_set_timestep_data_intern(values, values_rank, values_shape, tstep, stime, dt)
@@ -1503,7 +1522,7 @@ contains
         dim_count = 0
         if (this%get_x_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) dim_count = 1
         if (this%get_y_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) dim_count = dim_count + 1
-        if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype /= -1)) dim_count = dim_count + 1
+        if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype > 0)) dim_count = dim_count + 1
         if (dim_count /= values_rank) then 
             print*, "Nominal number of dimensions: ", dim_count
             print*, "Actual number of dimensions:  ", values_rank
@@ -1523,7 +1542,7 @@ contains
             nominal_shape(ind) = this%get_y_size()
             ind = ind +1
         end if
-        if (this%nzval > 1  .or. (this%nzval == 1 .and. this%zaxistype /= -1)) then
+        if (this%nzval > 1  .or. (this%nzval == 1 .and. this%zaxistype > 0)) then
             nominal_shape(ind) = this%nzval
             ind = ind +1
         end if
@@ -1791,6 +1810,10 @@ contains
         res%coord_lon_flipped   = this%coord_lon_flipped
         res%coord_lat_flipped   = this%coord_lat_flipped
         res%fill_value          = this%fill_value
+        res%grid_is_rotated     = this%grid_is_rotated
+        res%grid_x_pole         = this%grid_x_pole
+        res%grid_y_pole         = this%grid_y_pole
+        res%grid_angle          = this%grid_angle
     end function
 
     !> @public
