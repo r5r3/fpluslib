@@ -1453,7 +1453,7 @@ contains
                 values_rank = 2
                 !$FP end if
                 !$FP if (i == 2) then 
-                if (this%nzval > 1) then
+                if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype /= -1)) then
                     allocate(values_shape(3))
                     values_shape(1) = values_shape_2(1)    
                     values_shape(2) = 1    
@@ -1503,7 +1503,7 @@ contains
         dim_count = 0
         if (this%get_x_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) dim_count = 1
         if (this%get_y_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) dim_count = dim_count + 1
-        if (this%nzval > 1) dim_count = dim_count + 1
+        if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype /= -1)) dim_count = dim_count + 1
         if (dim_count /= values_rank) then 
             print*, "Nominal number of dimensions: ", dim_count
             print*, "Actual number of dimensions:  ", values_rank
@@ -1523,7 +1523,7 @@ contains
             nominal_shape(ind) = this%get_y_size()
             ind = ind +1
         end if
-        if (this%nzval > 1) then
+        if (this%nzval > 1  .or. (this%nzval == 1 .and. this%zaxistype /= -1)) then
             nominal_shape(ind) = this%nzval
             ind = ind +1
         end if
@@ -1573,8 +1573,8 @@ contains
             if (this%finfo%last_time_step >= ind) then
                 ! it is not possible to write to an finished timestep
                 if (this%finfo%last_time_step /= ind) then
-                    call fplus_error_print("It is not possible to write to an already finished time step!", "varinfo%set_timestep_date", FPLUS_WARN)
-                    call fplus_error_print("The data will be written for the current time step!", "varinf%set_timestep_date", FPLUS_WARN)
+                    call fplus_error_print("It is not possible to write to an already finished time step!", "varinfo%set_timestep_data", FPLUS_WARN)
+                    call fplus_error_print("The data will be written for the current time step!", "varinf%set_timestep_data", FPLUS_WARN)
                 end if
             else
                 ! define the timestep
