@@ -71,6 +71,8 @@ module fplus_cdi_helper
         real (kind=8), dimension(:), allocatable, public :: coord_time
         real (kind=8), dimension(:), allocatable, public :: coord_lon
         real (kind=8), dimension(:), allocatable, public :: coord_lat
+        real (kind=8), dimension(:,:), allocatable, public :: coord_lon2d
+        real (kind=8), dimension(:,:), allocatable, public :: coord_lat2d
         real (kind=8), dimension(:), allocatable, public :: coord_z
         integer, public :: code = -1, zaxistype = -1, gridtype = -1
         integer, private :: varID = -1
@@ -747,19 +749,26 @@ contains
 
                     ! we only support lonlat and gaussian grids
                     info%gridtype = gridInqType(gridID)
-                    if (info%gridtype /= GRID_LONLAT .and. info%gridtype /= GRID_GAUSSIAN .and. info%gridtype /= GRID_UNSTRUCTURED) then
+                    if (info%gridtype /= GRID_LONLAT .and. info%gridtype /= GRID_GAUSSIAN .and. info%gridtype /= GRID_UNSTRUCTURED .and. info%gridtype /= GRID_CURVILINEAR) then
                         call fplus_error_print("unsupported grid: " // trim(type_to_string(info%gridtype)), "new_fileinfo")
                     end if
 
                     ! allocate the lon and lat coordinate arrays
                     info%nlon = gridInqXsize(gridID)
                     info%nlat = gridInqYsize(gridID)
-                    allocate(info%coord_lon(info%nlon))
-                    allocate(info%coord_lat(info%nlat))
-
-                    ! store the lat and lon coordinates
-                    stat = gridInqXvals(gridID, info%coord_lon)
-                    stat = gridInqYvals(gridID, info%coord_lat)
+                    if (.not. info%gridtype == GRID_CURVILINEAR) then
+                        allocate(info%coord_lon(info%nlon))
+                        allocate(info%coord_lat(info%nlat))
+                        ! store the lat and lon coordinates
+                        stat = gridInqXvals(gridID, info%coord_lon)
+                        stat = gridInqYvals(gridID, info%coord_lat)
+                    else
+                        allocate(info%coord_lon2d(info%nlon, info%nlat))
+                        allocate(info%coord_lat2d(info%nlat, info%nlat))                    
+                        ! store the lat and lon coordinates
+                        stat = gridInqXvals(gridID, info%coord_lon2d)
+                        stat = gridInqYvals(gridID, info%coord_lat2d)
+                    end if
 
                     ! is a lon-lat or gaussian grid upside down orrientated?
                     if (info%gridtype == GRID_LONLAT .or. info%gridtype == GRID_GAUSSIAN .and. info%nlon > 1) then
@@ -851,11 +860,10 @@ contains
         class(fileinfo) :: this
 
         ! local variables
-        type(listiterator), allocatable :: iter
         class(varinfo), pointer :: ptr, ptr2
         class(*), pointer :: temp
         integer :: gridsize
-        integer (kind=8) :: i
+        integer (kind=8) :: i, vi
 
         ! leave this subroutine directly if the variable definition is already fixed
         if (this%fixed) return
@@ -870,51 +878,113 @@ contains
         call vlistDefTaxis(this%vlistID, this%taxisID)
 
         ! loop over all variables in this file
-        iter = this%variables%get_iterator()
-        do while (iter%hasnext())
-            temp => iter%next()
+        do vi = 1, this%variables%length()
+            temp => this%variables%get(vi)
             ptr => to_varinfo(temp)
 
             ! create the grid if not already done
             if (ptr%gridID == -1) then
-                if (ptr%gridtype == -1) then
-                    call fplus_error_print("the grid type has not yet been defined", "fileinfo%fix_variable_definition")
-                else if (ptr%gridtype == GRID_LONLAT .or. ptr%gridtype == GRID_GAUSSIAN) then
-                    ptr%gridID = gridCreate(GRID_LONLAT, ptr%nlon*ptr%nlat)
-                    call list_gridID%add(ptr%gridID, copy=.true.)
-                    call gridDefXsize(ptr%gridID, ptr%nlon)
-                    call gridDefYsize(ptr%gridID, ptr%nlat)
-                    if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
-                    if (allocated(ptr%coord_lon)) call gridDefYvals(ptr%gridID, ptr%coord_lat)
-                    ! rotated lonlat-grid?
-                    if (ptr%grid_is_rotated) then
-                        call gridDefXpole(ptr%gridID, ptr%grid_x_pole)
-                        call gridDefYpole(ptr%gridID, ptr%grid_y_pole)
-                        call gridDefAngle(ptr%gridID, ptr%grid_angle)
+                ! check if there is any other variable with the same grid, which is already defined
+                if (vi > 1) then
+                    do i = 1, vi -1
+                        temp => this%variables%get(i)
+                        ptr2 => to_varinfo(temp)
+                        if (ptr2%gridtype /= ptr%gridtype) cycle
+                        if (ptr2%nlon /= ptr%nlon) cycle
+                        if (ptr2%nlat /= ptr%nlat) cycle
+                        if (allocated(ptr2%coord_lon2d) .and. allocated(ptr%coord_lon2d)) then
+                            if (any(ptr2%coord_lon2d /= ptr%coord_lon2d)) cycle
+                        else if (allocated(ptr2%coord_lon2d) .and. .not. allocated(ptr%coord_lon2d)) then
+                            cycle
+                        else if (.not. allocated(ptr2%coord_lon2d) .and. allocated(ptr%coord_lon2d)) then
+                            cycle
+                        end if
+                        if (allocated(ptr2%coord_lon) .and. allocated(ptr%coord_lon)) then
+                            if (any(ptr2%coord_lon /= ptr%coord_lon)) cycle
+                        else if (allocated(ptr2%coord_lon) .and. .not. allocated(ptr%coord_lon)) then
+                            cycle
+                        else if (.not. allocated(ptr2%coord_lon) .and. allocated(ptr%coord_lon)) then
+                            cycle
+                        end if
+                        if (allocated(ptr2%coord_lat2d) .and. allocated(ptr%coord_lat2d)) then
+                            if (any(ptr2%coord_lat2d /= ptr%coord_lat2d)) cycle
+                        else if (allocated(ptr2%coord_lat2d) .and. .not. allocated(ptr%coord_lat2d)) then
+                            cycle
+                        else if (.not. allocated(ptr2%coord_lat2d) .and. allocated(ptr%coord_lat2d)) then
+                            cycle
+                        end if
+                        if (allocated(ptr2%coord_lat) .and. allocated(ptr%coord_lat)) then
+                            if (any(ptr2%coord_lat /= ptr%coord_lat)) cycle
+                        else if (allocated(ptr2%coord_lat) .and. .not. allocated(ptr%coord_lat)) then
+                            cycle
+                        else if (.not. allocated(ptr2%coord_lat) .and. allocated(ptr%coord_lat)) then
+                            cycle
+                        end if
+                        if (ptr2%grid_is_rotated .neqv. ptr%grid_is_rotated) cycle
+                        if (ptr2%grid_is_rotated .and. ptr%grid_is_rotated) then
+                            if (ptr2%grid_x_pole /= ptr%grid_x_pole) cycle
+                            if (ptr2%grid_y_pole /= ptr%grid_y_pole) cycle
+                            if (ptr2%grid_angle /= ptr%grid_angle) cycle                                
+                        end if
+                        ! the grid are identical!
+                        ptr%gridID = ptr2%gridID
+                        exit
+                    end do
+                end if
+                ! not already defined, so define it!
+                if (ptr%gridID == -1) then
+                    if (ptr%gridtype == -1) then
+                        call fplus_error_print("the grid type has not yet been defined", "fileinfo%fix_variable_definition")
+                    else if (ptr%gridtype == GRID_LONLAT .or. ptr%gridtype == GRID_GAUSSIAN) then
+                        ptr%gridID = gridCreate(GRID_LONLAT, ptr%nlon*ptr%nlat)
+                        call list_gridID%add(ptr%gridID, copy=.true.)
+                        call gridDefXsize(ptr%gridID, ptr%nlon)
+                        call gridDefYsize(ptr%gridID, ptr%nlat)
+                        if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
+                        if (allocated(ptr%coord_lon)) call gridDefYvals(ptr%gridID, ptr%coord_lat)
+                        ! rotated lonlat-grid?
+                        if (ptr%grid_is_rotated) then
+                            call gridDefXpole(ptr%gridID, ptr%grid_x_pole)
+                            call gridDefYpole(ptr%gridID, ptr%grid_y_pole)
+                            call gridDefAngle(ptr%gridID, ptr%grid_angle)
+                        end if
+                    else if (ptr%gridtype == GRID_GENERIC) then
+                        gridsize = 1
+                        if (ptr%nlon > 0) gridsize = gridsize * ptr%nlon
+                        if (ptr%nlat > 0) gridsize = gridsize * ptr%nlat                        
+                        ptr%gridID = gridCreate(GRID_GENERIC, gridsize)
+                        call list_gridID%add(ptr%gridID, copy=.true.)
+                        if (ptr%nlon > 0) call gridDefXsize(ptr%gridID, ptr%nlon)
+                        if (ptr%nlat > 0) call gridDefYsize(ptr%gridID, ptr%nlat)
+                        if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
+                        if (allocated(ptr%coord_lon)) call gridDefYvals(ptr%gridID, ptr%coord_lat)
+                    else if (ptr%gridtype == GRID_UNSTRUCTURED) then
+                        if (ptr%nlon /= ptr%nlat .or. ptr%nlon == 0) then
+                            call fplus_error_print("the size of the x and y coordinate of a unstructured grid has to match!", "fileinfo%fix_variable_definition")
+                        end if
+                        gridsize = ptr%nlon
+                        ptr%gridID = gridCreate(GRID_UNSTRUCTURED, gridsize)
+                        call list_gridID%add(ptr%gridID, copy=.true.)
+                        call gridDefXsize(ptr%gridID, ptr%nlon)
+                        call gridDefYsize(ptr%gridID, ptr%nlat)
+                        if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
+                        if (allocated(ptr%coord_lon)) call gridDefYvals(ptr%gridID, ptr%coord_lat)
+                    else if (ptr%gridtype == GRID_CURVILINEAR) then
+                        ptr%gridID = gridCreate(GRID_CURVILINEAR, ptr%nlon*ptr%nlat)
+                        call list_gridID%add(ptr%gridID, copy=.true.)
+                        call gridDefXsize(ptr%gridID, ptr%nlon)
+                        call gridDefYsize(ptr%gridID, ptr%nlat)
+                        if (allocated(ptr%coord_lon2d)) call gridDefXvals(ptr%gridID, ptr%coord_lon2d)
+                        if (allocated(ptr%coord_lon2d)) call gridDefYvals(ptr%gridID, ptr%coord_lat2d)
+                        ! rotated lonlat-grid?
+                        if (ptr%grid_is_rotated) then
+                            call gridDefXpole(ptr%gridID, ptr%grid_x_pole)
+                            call gridDefYpole(ptr%gridID, ptr%grid_y_pole)
+                            call gridDefAngle(ptr%gridID, ptr%grid_angle)
+                        end if
+                    else
+                        call fplus_error_print("unsupported grid type: " // trim(type_to_string(ptr%gridtype)), "fileinfo%fix_variable_definition")
                     end if
-                else if (ptr%gridtype == GRID_GENERIC) then
-                    gridsize = 1
-                    if (ptr%nlon > 0) gridsize = gridsize * ptr%nlon
-                    if (ptr%nlat > 0) gridsize = gridsize * ptr%nlat                        
-                    ptr%gridID = gridCreate(GRID_GENERIC, gridsize)
-                    call list_gridID%add(ptr%gridID, copy=.true.)
-                    if (ptr%nlon > 0) call gridDefXsize(ptr%gridID, ptr%nlon)
-                    if (ptr%nlat > 0) call gridDefYsize(ptr%gridID, ptr%nlat)
-                    if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
-                    if (allocated(ptr%coord_lon)) call gridDefYvals(ptr%gridID, ptr%coord_lat)
-                else if (ptr%gridtype == GRID_UNSTRUCTURED) then
-                    if (ptr%nlon /= ptr%nlat .or. ptr%nlon == 0) then
-                        call fplus_error_print("the size of the x and y coordinate of a unstructured grid has to match!", "fileinfo%fix_variable_definition")
-                    end if
-                    gridsize = ptr%nlon
-                    ptr%gridID = gridCreate(GRID_UNSTRUCTURED, gridsize)
-                    call list_gridID%add(ptr%gridID, copy=.true.)
-                    call gridDefXsize(ptr%gridID, ptr%nlon)
-                    call gridDefYsize(ptr%gridID, ptr%nlat)
-                    if (allocated(ptr%coord_lon)) call gridDefXvals(ptr%gridID, ptr%coord_lon)
-                    if (allocated(ptr%coord_lon)) call gridDefYvals(ptr%gridID, ptr%coord_lat)
-                else
-                    call fplus_error_print("unsupported grid type: " // trim(type_to_string(ptr%gridtype)), "fileinfo%fix_variable_definition")
                 end if
             end if
 
@@ -1065,13 +1135,15 @@ contains
         class(varinfo) :: this
         integer, intent(in) :: new_type
         ! is the gridtype valid?
-        if (new_type /= GRID_UNSTRUCTURED .and. new_type /= GRID_LONLAT .and. new_type /= GRID_GAUSSIAN) then
+        if (new_type /= GRID_UNSTRUCTURED .and. new_type /= GRID_LONLAT .and. new_type /= GRID_GAUSSIAN .and. new_type /= GRID_CURVILINEAR) then
             call fplus_error_print("invalid grid type: " // type_to_string(new_type), "varinfo%set_gridtype", FPLUS_ERR)
         end if
         ! ok, the type is valid. remove the x- and y-coordinates
         this%gridtype = new_type
         if (allocated(this%coord_lon)) deallocate(this%coord_lon)
         if (allocated(this%coord_lat)) deallocate(this%coord_lat)
+        if (allocated(this%coord_lon2d)) deallocate(this%coord_lon2d)
+        if (allocated(this%coord_lat2d)) deallocate(this%coord_lat2d)
         this%nlon = -1
         this%nlat = -1
     end subroutine
@@ -1264,13 +1336,15 @@ contains
         !> @param[in]   stime   the time in seconds since 1970 for this time step, optional
         !> @param[in]   dt      the time as a datetime object, optional
         !> @param[in]   levels  an array von level indices (1 .. nzval), only usable for 3d variables, optional
-        recursive subroutine varinfo_get_timestep_data(this, res, tstep, stime, dt, levels)
+        !> @param[in]   allow_missing_ts    set to true, if you want missing values to be return if the timestep is not in the input file.
+        recursive subroutine varinfo_get_timestep_data(this, res, tstep, stime, dt, levels, allow_missing_ts)
             class(varinfo) :: this
             integer, intent(in), optional :: tstep
             real (kind=8), intent(in), optional :: stime
             class(datetime), intent(in), optional :: dt
             real (kind=8), ${D(i)}, allocatable :: res
             integer, dimension(:), optional :: levels
+            logical, optional :: allow_missing_ts
 
             ! local variables
             integer :: ind = fplus_fill_int
@@ -1283,6 +1357,11 @@ contains
             class(*), pointer :: ptr
             real (kind=8), ${D(i)}, allocatable :: temp
             integer :: nlevels
+            logical :: allow_missing_ts_intern
+
+            ! return missing values if the timestep was not found
+            allow_missing_ts_intern = .false.
+            if (present(allow_missing_ts)) allow_missing_ts_intern = allow_missing_ts
 
             ! how many levels do we have?
             nlevels = this%nzval
@@ -1304,7 +1383,14 @@ contains
             ! get the time step
             if (present(tstep)) ind = tstep
             if (present(dt)) ind = valueindex(this%coord_time, dt%time_in_sec1970, 1, this%ntime, sorted=.true.)
-            if (ind == fplus_fill_int) call fplus_error_print("stime not yet implemented", "varinfo%get_timestep_data")
+            if (ind == fplus_fill_int) then 
+                if (allow_missing_ts_intern .eqv. .false.) then 
+                    call fplus_error_print("time step not found!", "varinfo%get_timestep_data")
+                else
+                    res = this%fill_value
+                    return 
+                end if
+            end if
 
             ! allocate the array for the result
             ! only allocate the array, if it is not allocated or if it is allocated and the shape is wrong
@@ -1786,11 +1872,13 @@ contains
 
         !copy the coordinates
         if (.not.present(copy_llz) .or. (copy_llz .eqv. .true.)) then
-            if (allocated(this%coord_lon))  res%coord_lon   = this%coord_lon
+            if (allocated(this%coord_lon))      res%coord_lon   = this%coord_lon
+            if (allocated(this%coord_lon2d))    res%coord_lon2d = this%coord_lon2d
             res%nlon        = this%nlon
-            if (allocated(this%coord_lat))  res%coord_lat   = this%coord_lat
+            if (allocated(this%coord_lat))      res%coord_lat   = this%coord_lat
+            if (allocated(this%coord_lat2d))    res%coord_lat2d = this%coord_lat2d
             res%nlat        = this%nlat
-            if (allocated(this%coord_z))    res%coord_z     = this%coord_z
+            if (allocated(this%coord_z))        res%coord_z     = this%coord_z
             res%nzval       = this%nzval
         end if
         if (.not.present(copy_time) .or. (copy_time .eqv. .true.)) then
@@ -1823,7 +1911,7 @@ contains
     function varinfo_get_x_size(this) result (res)
         class(varinfo) :: this
         integer :: res
-        if (this%gridtype == GRID_LONLAT .or. this%gridtype == GRID_UNSTRUCTURED .or. this%gridtype == GRID_GAUSSIAN .or. this%gridtype == GRID_GENERIC) then
+        if (this%gridtype == GRID_LONLAT .or. this%gridtype == GRID_UNSTRUCTURED .or. this%gridtype == GRID_GAUSSIAN .or. this%gridtype == GRID_GENERIC .or. this%gridtype == GRID_CURVILINEAR) then
             res = this%nlon
         else
             call fplus_error_print("unsupported grid: " // trim(type_to_string(this%gridtype)), "get_x_size")
@@ -1837,7 +1925,7 @@ contains
     function varinfo_get_y_size(this) result (res)
         class(varinfo) :: this
         integer :: res
-        if (this%gridtype == GRID_LONLAT .or. this%gridtype == GRID_GAUSSIAN .or. this%gridtype == GRID_GENERIC) then
+        if (this%gridtype == GRID_LONLAT .or. this%gridtype == GRID_GAUSSIAN .or. this%gridtype == GRID_GENERIC .or. this%gridtype == GRID_CURVILINEAR) then
             res = this%nlat
         else if (this%gridtype == GRID_UNSTRUCTURED) then
             res = 1
