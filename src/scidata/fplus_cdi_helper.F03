@@ -277,7 +277,9 @@ contains
         logical, dimension(2) :: vinr
         real(kind=8), dimension(2) :: lon_range_temp
         real(kind=8), dimension(:), allocatable :: lon_temp
+        real(kind=8), dimension(:,:), allocatable :: lon_temp2d
         integer, dimension(2) :: lon_type
+        integer :: i,j
 
         ! set the result to null in the case that nothing is found
         res => null()
@@ -375,20 +377,33 @@ contains
             allocate(res%parent_subscripts(3,2))
 
             ! determine the subscript indecies for lon
-            lon_temp = res%parent%coord_lon
+            if (res%parent%gridtype /= GRID_CURVILINEAR) then
+                lon_temp = res%parent%coord_lon
+            else
+                lon_temp = reshape(res%parent%coord_lon2d, (/res%parent%nlon*res%parent%nlat/))
+                lon_temp2d = res%parent%coord_lon2d
+            end if
             if (present(lon_range)) then
+                ! is the lon_range array monotonic?
+                if (lon_range(1) > lon_range(2)) then
+                    if (lon_range(1) > 180) then
+                        lon_range(1) = lon_range(1) - 360
+                    else
+                        call fplus_error_print("first lon range value must be smaller than the second.", "datapool%get_variable")
+                    end if
+                end if
                 ! the longitude is a special case. it may be necessary to rotate the array before a subsection is created
                 ! check at first if the range in complete within the coordinate range without changes anything
                 vinr = value_in_range(lon_temp, lon_range)
                 if (any(vinr .eqv. .false.)) then
                     ! longitude between 0 and 360 as well as -180 and 180 are used. can we solve the problem by switching between these representations?
                     ! which representation is used for the coordinate axis? 
-                    if (any(lon_temp < 0)) then
+                    if (any(lon_temp < 0) .and. .not. any(lon_temp > 180)) then
                         lon_type(1) = -1
                     else
                         lon_type(1) = 1
                     end if
-                    if (any(lon_range < 0)) then
+                    if (any(lon_range < 0) .and. .not. any(lon_range > 180)) then
                         lon_type(2) = -1
                     else
                         lon_type(2) = 1
@@ -400,36 +415,70 @@ contains
                             where (lon_temp > 180)
                                 lon_temp = lon_temp - 360
                             end where
+                            if (allocated(lon_temp2d)) then
+                                where (lon_temp2d > 180)
+                                    lon_temp2d = lon_temp2d - 360
+                                end where
+                            end if
                         else
                             where (lon_temp < 0)
                                 lon_temp = lon_temp + 360
                             end where                            
+                            if (allocated(lon_temp2d)) then
+                                where (lon_temp2d < 0)
+                                    lon_temp2d = lon_temp2d + 360
+                                end where
+                            end if
                         end if
                     end if
                 end if
-                ! check the order in which the values from the range occure
-                if (closest_index(lon_temp, lon_range(1)) > closest_index(lon_temp, lon_range(2))) then
-                    if (lon_is_cyclic(lon_temp)) then
-                        call rot_lon_to_range(lon_range, lon_temp, lon_temp, npoints=res%rotated_by_npoints)
-                    else
-                        call fplus_error_print("the array needs to be rotated in longitude direction but is not cyclic!", "datapool%get_variable", FPLUS_ERR)
+                ! create the subsection for 1d coordinates
+                if (res%gridtype /= GRID_CURVILINEAR) then
+                    ! check the order in which the values from the range occure
+                    if (closest_index(lon_temp, lon_range(1)) > closest_index(lon_temp, lon_range(2))) then
+                        if (lon_is_cyclic(lon_temp)) then
+                            call rot_lon_to_range(lon_range, lon_temp, lon_temp, npoints=res%rotated_by_npoints)
+                        else
+                            call fplus_error_print("the array needs to be rotated in longitude direction but is not cyclic!", "datapool%get_variable", FPLUS_ERR)
+                        end if
                     end if
-                end if
-                ! create the subsection
-                if (res%parent%coord_lon(lbound(lon_temp, 1)) < res%parent%coord_lon(ubound(lon_temp, 1))) then
-                    res%parent_subscripts(1,1) = valueindex_largest_le(lon_temp, lon_range(1))
-                    res%parent_subscripts(1,2) = valueindex_smallest_ge(lon_temp, lon_range(2))
+                    ! create the subsection
+                    if (res%parent%coord_lon(lbound(lon_temp, 1)) < res%parent%coord_lon(ubound(lon_temp, 1))) then
+                        res%parent_subscripts(1,1) = valueindex_largest_le(lon_temp, lon_range(1))
+                        res%parent_subscripts(1,2) = valueindex_smallest_ge(lon_temp, lon_range(2))
+                    else
+                        res%parent_subscripts(1,1) = valueindex_largest_ge(lon_temp, lon_range(2))
+                        res%parent_subscripts(1,2) = valueindex_smallest_le(lon_temp, lon_range(1))
+                    end if
+                ! create the subsection for curvilinear grids
                 else
-                    res%parent_subscripts(1,1) = valueindex_largest_ge(lon_temp, lon_range(2))
-                    res%parent_subscripts(1,2) = valueindex_smallest_le(lon_temp, lon_range(1))
+                    ! find the smallest and the largest index to include in a loop over all points
+                    res%parent_subscripts(1:2,:) = fplus_fill_int
+                    do i = 1, res%parent%nlon
+                        do j = 1, res%parent%nlat
+                            if (present(lat_range)) then
+                                if (res%parent%coord_lon2d(i,j) >= lon_range(1) .and. res%parent%coord_lon2d(i,j) <= lon_range(2) .and. res%parent%coord_lat2d(i,j) >= lat_range(1) .and. res%parent%coord_lat2d(i,j) <= lat_range(2)) then
+                                    if (res%parent_subscripts(1,1) == fplus_fill_int .or. res%parent_subscripts(1,1) /= fplus_fill_int .and. res%parent_subscripts(1,1) > i) res%parent_subscripts(1,1) = i
+                                    if (res%parent_subscripts(1,2) == fplus_fill_int .or. res%parent_subscripts(1,2) /= fplus_fill_int .and. res%parent_subscripts(1,2) < i) res%parent_subscripts(1,2) = i
+                                    if (res%parent_subscripts(2,1) == fplus_fill_int .or. res%parent_subscripts(2,1) /= fplus_fill_int .and. res%parent_subscripts(2,1) > j) res%parent_subscripts(2,1) = j
+                                    if (res%parent_subscripts(2,2) == fplus_fill_int .or. res%parent_subscripts(2,2) /= fplus_fill_int .and. res%parent_subscripts(2,2) < j) res%parent_subscripts(2,2) = j
+                                end if
+                            else
+                                if (res%parent%coord_lon2d(i,j) >= lon_range(1) .and. res%parent%coord_lon2d(i,j) <= lon_range(2)) then
+                                    if (res%parent_subscripts(1,1) == fplus_fill_int .or. res%parent_subscripts(1,1) /= fplus_fill_int .and. res%parent_subscripts(1,1) > i) res%parent_subscripts(1,1) = i
+                                    if (res%parent_subscripts(1,2) == fplus_fill_int .or. res%parent_subscripts(1,2) /= fplus_fill_int .and. res%parent_subscripts(1,2) < i) res%parent_subscripts(1,2) = i
+                                end if                            
+                            end if
+                        end do
+                    end do
                 end if
             else
-                res%parent_subscripts(1,1) = lbound(lon_temp, 1)
-                res%parent_subscripts(1,2) = ubound(lon_temp, 1)
+                res%parent_subscripts(1,1) = 1
+                res%parent_subscripts(1,2) = res%parent%nlon
             end if
 
             ! determine the subscript indecies for lat
-            if (present(lat_range)) then
+            if (present(lat_range) .and. res%parent%gridtype /= GRID_CURVILINEAR) then
                 if (res%parent%coord_lat(lbound(res%parent%coord_lat, 1)) < res%parent%coord_lat(ubound(res%parent%coord_lat, 1))) then
                     res%parent_subscripts(2,1) = valueindex_largest_le(res%parent%coord_lat, lat_range(1))
                     res%parent_subscripts(2,2) = valueindex_smallest_ge(res%parent%coord_lat, lat_range(2))
@@ -437,9 +486,19 @@ contains
                     res%parent_subscripts(2,1) = valueindex_largest_ge(res%parent%coord_lat, lat_range(2))
                     res%parent_subscripts(2,2) = valueindex_smallest_le(res%parent%coord_lat, lat_range(1))
                 end if
-            else
-                res%parent_subscripts(2,1) = lbound(res%parent%coord_lat, 1)
-                res%parent_subscripts(2,2) = ubound(res%parent%coord_lat, 1)
+            else if (present(lat_range) .and. res%parent%gridtype /= GRID_CURVILINEAR .and. .not. present(lon_range)) then
+                res%parent_subscripts(2,:) = fplus_fill_int
+                do i = 1, res%parent%nlon
+                    do j = 1, res%parent%nlat
+                        if (res%parent%coord_lat2d(i,j) >= lat_range(1) .and. res%parent%coord_lat2d(i,j) <= lat_range(2)) then
+                            if (res%parent_subscripts(2,1) == fplus_fill_int .or. res%parent_subscripts(2,1) /= fplus_fill_int .and. res%parent_subscripts(2,1) > i) res%parent_subscripts(2,1) = j
+                            if (res%parent_subscripts(2,2) == fplus_fill_int .or. res%parent_subscripts(2,2) /= fplus_fill_int .and. res%parent_subscripts(2,2) < i) res%parent_subscripts(2,2) = j
+                        end if                            
+                    end do
+                end do
+            else if (res%parent%gridtype /= GRID_CURVILINEAR) then
+                res%parent_subscripts(2,1) = 1
+                res%parent_subscripts(2,2) = res%parent%nlat
             end if
 
             ! the indecies for z are fixed for the moment
@@ -456,17 +515,30 @@ contains
             end if
 
             ! create the coordinate arrays
-            res%coord_lon = lon_temp(res%parent_subscripts(1,1):res%parent_subscripts(1,2))
-            res%coord_lat = res%parent%coord_lat(res%parent_subscripts(2,1):res%parent_subscripts(2,2))
+            if (res%parent%gridtype /= GRID_CURVILINEAR) then
+                res%coord_lon = lon_temp(res%parent_subscripts(1,1):res%parent_subscripts(1,2))
+                res%coord_lat = res%parent%coord_lat(res%parent_subscripts(2,1):res%parent_subscripts(2,2))
+                res%nlon = size(res%coord_lon)
+                res%nlat = size(res%coord_lat)
+            else
+                ! is the selected area completely included?
+                if (res%parent_subscripts(1,1) > 1 .and. minval(res%parent%coord_lon2d(res%parent_subscripts(1,1):res%parent_subscripts(1,2), res%parent_subscripts(2,1):res%parent_subscripts(2,2))) > lon_range(1)) res%parent_subscripts(1,1) = res%parent_subscripts(1,1) - 1
+                if (res%parent_subscripts(1,2) < res%parent%nlon .and. maxval(res%parent%coord_lon2d(res%parent_subscripts(1,1):res%parent_subscripts(1,2), res%parent_subscripts(2,1):res%parent_subscripts(2,2))) < lon_range(2)) res%parent_subscripts(1,2) = res%parent_subscripts(1,2) + 1
+                if (res%parent_subscripts(2,1) > 1 .and. minval(res%parent%coord_lat2d(res%parent_subscripts(1,1):res%parent_subscripts(1,2), res%parent_subscripts(2,1):res%parent_subscripts(2,2))) > lat_range(1)) res%parent_subscripts(2,1) = res%parent_subscripts(2,1) - 1
+                if (res%parent_subscripts(2,2) < res%parent%nlat .and. maxval(res%parent%coord_lat2d(res%parent_subscripts(1,1):res%parent_subscripts(1,2), res%parent_subscripts(2,1):res%parent_subscripts(2,2))) < lat_range(2)) res%parent_subscripts(2,2) = res%parent_subscripts(2,2) + 1
+                ! create the new arrays
+                if (allocated(res%parent%coord_lon)) res%coord_lon = res%parent%coord_lon(res%parent_subscripts(1,1):res%parent_subscripts(1,2))
+                if (allocated(res%parent%coord_lat)) res%coord_lat = res%parent%coord_lat(res%parent_subscripts(2,1):res%parent_subscripts(2,2))
+                res%coord_lon2d = res%parent%coord_lon2d(res%parent_subscripts(1,1):res%parent_subscripts(1,2), res%parent_subscripts(2,1):res%parent_subscripts(2,2))
+                res%coord_lat2d = res%parent%coord_lat2d(res%parent_subscripts(1,1):res%parent_subscripts(1,2), res%parent_subscripts(2,1):res%parent_subscripts(2,2))
+                res%nlon = res%parent_subscripts(1,2) - res%parent_subscripts(1,1) + 1
+                res%nlat = res%parent_subscripts(2,2) - res%parent_subscripts(2,1) + 1
+            end if
             res%coord_z   = res%parent%coord_z(res%parent_subscripts(3,1):res%parent_subscripts(3,2))
-            res%nlon = size(res%coord_lon)
-            res%nlat = size(res%coord_lat)
             res%nzval = size(res%coord_z)
             ! if the derived variable if identical to the original variable, then return the original variable
             ! as the coordinates are created out of the parent coordinate, same size means same values. 
-            if (size(res%parent%coord_lon) == size(res%coord_lon)           &
-                .and. size(res%parent%coord_lat) == size(res%coord_lat)     &
-                .and. size(res%parent%coord_z) == size(res%coord_z)) then
+            if (res%parent%nlon == res%nlon .and. res%parent%nlat == res%nlat .and. res%parent%nzval == res%nzval) then
                 varptr => res%parent
                 deallocate(res)
                 res => varptr
@@ -764,7 +836,7 @@ contains
                         stat = gridInqYvals(gridID, info%coord_lat)
                     else
                         allocate(info%coord_lon2d(info%nlon, info%nlat))
-                        allocate(info%coord_lat2d(info%nlat, info%nlat))                    
+                        allocate(info%coord_lat2d(info%nlon, info%nlat))                    
                         ! store the lat and lon coordinates
                         stat = gridInqXvals(gridID, info%coord_lon2d)
                         stat = gridInqYvals(gridID, info%coord_lat2d)
