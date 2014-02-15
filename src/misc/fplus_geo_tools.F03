@@ -9,7 +9,7 @@ module fplus_geo_tools
     implicit none
     private
     
-    public :: rot_lon_to_range, lon_is_cyclic, point_in_polygon, geo_distance 
+    public :: rot_lon_to_range, lon_is_cyclic, point_in_polygon, geo_distance, lonrot_to_lon, latrot_to_lat
     
     !> @public
     !> @brief       Rotate a cyclic array as fas as needed to cover a given longitude range
@@ -26,6 +26,14 @@ module fplus_geo_tools
     !> @public
     !> @brief       calculate the distance of two points on earth
     !$FP interface template geo_distance
+
+    !> @public 
+    !> @brief       convert a rotated lon value to real lon value
+    !$FP interface template lonrot_to_lon
+
+    !> @public 
+    !> @brief       convert a rotated lat value to real lat value
+    !$FP interface template latrot_to_lat
 
 contains
 
@@ -202,6 +210,126 @@ contains
                 b = atan(1.0)/45.0
                 xmult = cos((lat1+lat2)*b/2.)*cos((lat1+lat2)*b/2.)
                 res = r_earth*sqrt((lon1-lon2)*(lon1-lon2)*b*b*xmult+(lat1-lat2)*(lat1-lat2)*b*b)
+            end function
+        !$FP end do
+    !$FP end template
+
+    !$FP template lonrot_to_lon
+        !$FP T = {real (kind=4)} {real (kind=8)}
+        !$FP do i = 1, 2
+    
+            !> @public
+            !> @brief       Convert rotated longitude to real longitude
+            !> @details     This function is based in CDO source code! 
+            !>              This function converts lambda from one rotated system to lambda in another
+            !>              system. If the optional argument polgam is present, the other system
+            !>              can also be a rotated one, where polgam is the angle between the two
+            !>              north poles.
+            !>              If polgam is not present, the other system is the real geographical
+            !>              system.
+            !> @param[in]   phirot    latitude in the rotated system
+            !> @param[in]   lamrot    longitude in the rotated system (E>0)
+            !> @param[in]   polphi    latitude of the rotated north pole
+            !> @param[in]   pollam    longitude of the rotated north pole
+            !> @param[in]   polgam    angle between both north poles
+            !> @return      longitude in the geographical system
+            function lonrot_to_lon(phirot, lamrot, polphi, pollam, polgam) result (res)
+                ${T(i)}, intent(in) :: phirot, lamrot, polphi, pollam, polgam
+                ${T(i)} :: res
+
+                ! local variables
+                ${T(i)} :: zsinpol, zcospol, zlampol
+                ${T(i)} :: zphirot, zlamrot, zarg1, zarg2
+                ${T(i)} :: zgam, DEG2RAD, RAD2DEG
+
+                !$FP if (i==1) then
+                DEG2RAD = atan(1.0) / 45.0
+                RAD2DEG = 45.0 / atan(1.0)
+                !$FP else
+                DEG2RAD = atan(1.0_8) / 45.0_8
+                RAD2DEG = 45.0_8 / atan(1.0_8)
+                !$FP end if
+
+                zsinpol = sin(DEG2RAD*polphi)
+                zcospol = cos(DEG2RAD*polphi)
+
+                zlampol = DEG2RAD*pollam
+                zphirot = DEG2RAD*phirot
+                if ( lamrot > 180.0 ) then 
+                    zlamrot = DEG2RAD*(lamrot-360.0)
+                else
+                    zlamrot = DEG2RAD*lamrot
+                end if
+
+                if ( polgam > 0 ) then
+                    zgam  = DEG2RAD*polgam
+                    zarg1 = sin(zlampol) * (-zsinpol*cos(zphirot) * (cos(zlamrot)*cos(zgam) - sin(zlamrot)*sin(zgam)) + zcospol*sin(zphirot)) - cos(zlampol)*cos(zphirot) * (sin(zlamrot)*cos(zgam) + cos(zlamrot)*sin(zgam))
+                    zarg2 = cos(zlampol) * (-zsinpol*cos(zphirot) * (cos(zlamrot)*cos(zgam) - sin(zlamrot)*sin(zgam)) + zcospol*sin(zphirot)) + sin(zlampol)*cos(zphirot) * (sin(zlamrot)*cos(zgam) + cos(zlamrot)*sin(zgam))
+                else
+                    zarg1 = sin(zlampol)*(- zsinpol*cos(zlamrot)*cos(zphirot) + zcospol * sin(zphirot)) - cos(zlampol) * sin(zlamrot)*cos(zphirot)
+                    zarg2 = cos(zlampol)*(- zsinpol*cos(zlamrot)*cos(zphirot) + zcospol * sin(zphirot)) + sin(zlampol) * sin(zlamrot)*cos(zphirot)
+                end if
+
+                if ( abs(zarg2) < 1.0e-20 ) zarg2 = 1.0e-20
+
+                res = (RAD2DEG*atan2(zarg1, zarg2))
+            end function
+        !$FP end do
+    !$FP end template
+
+
+    !$FP template latrot_to_lat
+        !$FP T = {real (kind=4)} {real (kind=8)}
+        !$FP do i = 1, 2
+    
+            !> @public
+            !> @brief       Convert rotated latitude to real latitude
+            !> @details     This function converts phi from one rotated system to phi in another
+            !>              system. If the optional argument polgam is present, the other system
+            !>              can also be a rotated one, where polgam is the angle between the two
+            !>              north poles.
+            !>              If polgam is not present, the other system is the real geographical
+            !>              system.
+            !> @param[in]   phirot    latitude in the rotated system
+            !> @param[in]   lamrot    longitude in the rotated system (E>0)
+            !> @param[in]   polphi    latitude of the rotated north pole
+            !> @param[in]   polgam    angle between the north poles of the systems
+            !> @return      latitude in the geographical system
+            function latrot_to_lat(phirot, lamrot, polphi, polgam) result (res)
+                ${T(i)}, intent(in) :: phirot, lamrot, polphi, polgam
+                ${T(i)} :: res
+
+                ! local variables
+                ${T(i)} :: zsinpol, zcospol
+                ${T(i)} :: zphirot, zlamrot, zarg
+                ${T(i)} :: zgam, DEG2RAD, RAD2DEG
+
+                !$FP if (i==1) then
+                DEG2RAD = atan(1.0) / 45.0
+                RAD2DEG = 45.0 / atan(1.0)
+                !$FP else
+                DEG2RAD = atan(1.0_8) / 45.0_8
+                RAD2DEG = 45.0_8 / atan(1.0_8)
+                !$FP end if
+
+                zsinpol = sin(DEG2RAD*polphi)
+                zcospol = cos(DEG2RAD*polphi)
+
+                zphirot = DEG2RAD*phirot
+                if ( lamrot > 180.0 ) then 
+                    zlamrot = DEG2RAD*(lamrot-360.0)
+                else
+                    zlamrot = DEG2RAD*lamrot
+                end if
+
+                if ( polgam > 0 ) then
+                    zgam = DEG2RAD*polgam
+                    zarg = zsinpol*sin(zphirot) + zcospol*cos(zphirot)*(cos(zlamrot)*cos(zgam) - sin(zgam)*sin(zlamrot))
+                else
+                    zarg = zcospol*cos(zphirot)*cos(zlamrot) + zsinpol*sin(zphirot)
+                end if
+
+                res = (RAD2DEG*asin(zarg))
             end function
         !$FP end do
     !$FP end template

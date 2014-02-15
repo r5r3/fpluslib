@@ -725,6 +725,7 @@ contains
         type(datetime) :: dt
         real (kind=8), dimension(:), allocatable :: timeaxis
         integer :: tsID, stat, vdate, vtime, varID, zaxisID, gridID, taxisID, nlon, nlat, nzval
+        integer :: i,j
         character (len=:), allocatable :: extension
         character (len=200) :: cdi_error_text
         info => null()
@@ -865,7 +866,23 @@ contains
                         info%grid_is_rotated = .true.
                         info%grid_x_pole = gridInqXpole(gridID)
                         info%grid_y_pole = gridInqYpole(gridID)
-                        info%grid_angle = gridInqAngle(gridID)                    
+                        info%grid_angle = gridInqAngle(gridID)
+
+                        ! convert to curvilinear
+                        if (info%gridtype == GRID_LONLAT) then
+                            info%gridtype = GRID_CURVILINEAR
+                            allocate(info%coord_lon2d(info%nlon, info%nlat))
+                            allocate(info%coord_lat2d(info%nlon, info%nlat))                            
+                            do i = 1, info%nlon
+                                do j = 1, info%nlat
+                                    info%coord_lon2d(i,j) = lonrot_to_lon(info%coord_lat(j), info%coord_lon(i), info%grid_y_pole, info%grid_x_pole, info%grid_angle)
+                                    info%coord_lat2d(i,j) = latrot_to_lat(info%coord_lat(j), info%coord_lon(i), info%grid_y_pole, info%grid_angle)
+                                end do
+                            end do
+                            deallocate(info%coord_lon)
+                            deallocate(info%coord_lat)
+                            info%grid_is_rotated = .false.
+                        end if              
                     end if
 
                     ! store the zaxis coordinates
