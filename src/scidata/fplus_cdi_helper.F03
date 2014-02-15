@@ -1533,7 +1533,7 @@ contains
                     return 
                 end if
             else
-                first_valid_timestep = this%finfo%first_valid_timestep
+                if (associated(this%finfo)) first_valid_timestep = this%finfo%first_valid_timestep
             end if
 
             ! allocate the array for the result
