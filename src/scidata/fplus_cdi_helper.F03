@@ -22,6 +22,8 @@ module fplus_cdi_helper
         type(list), allocatable, private :: derived_variables
         !> @brief   open for reading ("r") or writing ("w")
         character (len=1), private :: status
+        !> @brief   don't read the whole file, but only one selected lead year
+        integer, private :: lead_year
     contains
         !> @brief   Get a pointer to the variable information for a given code and z-axsis.
         procedure, public :: get_variable => datapool_get_variable
@@ -47,6 +49,8 @@ module fplus_cdi_helper
         integer :: taxisID = -1
         !> @brief   the index of the last defined timestep
         integer :: last_time_step = -1
+        !> @brief   first time step that should be used in a file, larger than 0 if lead_year is used
+        integer, private :: first_valid_timestep = 0
         !> @brief   the contained variables, the list stores varinfo objects as pointers
         type(list), allocatable :: variables
         !> @brief   open for reading ("r") or writing ("w")
@@ -188,10 +192,13 @@ contains
         !> @details     Reading is possible from mulptiply files add ones, writing so fare only in single files
         !> @param[in]   infile      one path object that contains the filename
         !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
-        function new_datapool_1file(infile, status) result (res)
+        !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
+        !>                          year 1 is the first year in the file, year 2 the second. 
+        function new_datapool_1file(infile, status, lead_year) result (res)
             type(datapool) :: res
             type(path) :: infile
             character (len=1), intent(in), optional :: status
+            integer, intent(in), optional :: lead_year
             res = new_datapool_nfiles_2((/infile/), status)
         end function
 
@@ -201,10 +208,13 @@ contains
             !> @details     Reading is possible from mulptiply files add ones, writing so fare only in single files
             !> @param[in]   infiles     An Array of path objects that contain the filename(s)
             !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
-            function new_datapool_nfiles(infiles, status) result (res)
+            !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
+            !>                          year 1 is the first year in the file, year 2 the second. 
+            function new_datapool_nfiles(infiles, status, lead_year) result (res)
                 type(datapool) :: res
                 ${intype(j)} :: infiles
                 character (len=1), intent(in), optional :: status
+                integer, intent(in), optional :: lead_year
 
                 ! local variables
                 integer (kind=8) :: i, lsize
@@ -219,6 +229,14 @@ contains
                 end if
                 if (res%status /= "r" .and. res%status /= "w") then
                     call fplus_error_print("unknown status: " // res%status, "new_datapool")
+                end if
+
+                ! limit visible file content to specific lead year
+                if (present(lead_year)) then
+                    if (res%status == "w") call fplus_error_print("the lead_year parameter is only valid for reading", "new_datapool")
+                    res%lead_year = lead_year
+                else
+                    res%lead_year = -1
                 end if
 
                 ! so far, only one file for writing is supported
@@ -238,7 +256,7 @@ contains
                     end if
 
                     ! put the fileinfo into the list
-                    call res%files%add(new_fileinfo(onefile, res%status))
+                    call res%files%add(new_fileinfo(onefile, res%status, res%lead_year))
                 end do
                 ! create lists to track cdi resources
                 !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
@@ -713,18 +731,21 @@ contains
     !>              if the file is open for reading
     !> @param[in]   filename    the abstract path name of the file to open
     !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
+    !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
+    !>                          year 1 is the first year in the file, year 2 the second. 
     !> @returns     A pointer to the new fileinfo object
-    function new_fileinfo(filename, status) result (res)
+    function new_fileinfo(filename, status, lead_year) result (res)
         type(path) :: filename
         class(fileinfo), pointer :: res
         character (len=1), intent(in), optional :: status
+        integer, intent(in), optional :: lead_year
 
         ! local variables
         type(list), allocatable :: ls
         class(varinfo), pointer :: info
-        type(datetime) :: dt
-        real (kind=8), dimension(:), allocatable :: timeaxis
-        integer :: tsID, stat, vdate, vtime, varID, zaxisID, gridID, taxisID, nlon, nlat, nzval
+        type(datetime) :: dt, dt_first, dt_lead_start, dt_lead_end
+        real (kind=8), dimension(:), allocatable :: timeaxis, timeaxis2
+        integer :: tsID, stat, vdate, vtime, varID, zaxisID, gridID, taxisID, nlon, nlat, nzval, lead_year_intern
         integer :: i,j
         character (len=:), allocatable :: extension
         character (len=200) :: cdi_error_text
@@ -742,6 +763,14 @@ contains
         end if
         if (res%status /= "r" .and. res%status /= "w") then
             call fplus_error_print("unknown status: " // res%status, "new_fileinfo")
+        end if
+
+        ! limit the file content to a specific lead year is only allowed while reading
+        if (present(lead_year)) then
+            if (lead_year > -1 .and. res%status == "w") call fplus_error_print("lead_year argument only allowed for reading!", "new_fileinfo")
+            lead_year_intern = lead_year
+        else 
+            lead_year_intern = -1
         end if
 
         ! store the filename
@@ -771,6 +800,7 @@ contains
 
                 ! loop over all timesteps to create a timeaxis variable
                 tsID = 0
+                res%first_valid_timestep = 0
                 do
                     ! Read the time step
                     stat = streamInqTimestep(res%streamID, tsID)
@@ -782,11 +812,34 @@ contains
 
                     ! convert to datetime object and store in a list
                     dt = new_datetime(idate=vdate, itime=vtime)
-                    call ls%add(dt, copy=.true.)
+                    ! find start and end of selected lead year
+                    if (tsID == 0 .and. lead_year_intern > -1) then 
+                        dt_lead_start = dt
+                        call dt_lead_start%add(year=lead_year_intern-1)
+                        dt_lead_end = dt_lead_start
+                        call dt_lead_end%add(year=1, second=-1.0_8)
+                    end if
+                    ! limit the timeaxis if a specific lead year was selected
+                    if (lead_year_intern > -1) then
+                        if (dt%time_in_sec1970 >= dt_lead_start%time_in_sec1970 .and. dt%time_in_sec1970 <= dt_lead_end%time_in_sec1970) then
+                            call ls%add(dt, copy=.true.)
+                            if (ls%length() == 1) res%first_valid_timestep = tsID
+                        else if (dt%time_in_sec1970 > dt_lead_end%time_in_sec1970) then 
+                            exit
+                        end if
+                    else
+                        call ls%add(dt, copy=.true.)
+                    end if
 
                     tsID = tsID + 1
                 end do
-                timeaxis = ls
+
+                ! time steps found? 
+                if (ls%length() > 0 .or. lead_year_intern == -1) then
+                    timeaxis = ls
+                else
+                    call fplus_error_print("no input data found for lead year " // type_to_string(lead_year_intern), "new_fileinfo")
+                end if
 
                 ! release the memory of the list
                 call ls%clear()
@@ -1445,7 +1498,7 @@ contains
             class(varinfo), pointer :: varptr
             class(*), pointer :: ptr
             real (kind=8), ${D(i)}, allocatable :: temp
-            integer :: nlevels
+            integer :: nlevels, first_valid_timestep
             logical :: allow_missing_ts_intern
 
             ! return missing values if the timestep was not found
@@ -1479,6 +1532,8 @@ contains
                     res = this%fill_value
                     return 
                 end if
+            else
+                first_valid_timestep = this%finfo%first_valid_timestep
             end if
 
             ! allocate the array for the result
@@ -1540,6 +1595,7 @@ contains
                         ind2 = valueindex(varptr%coord_time, this%coord_time(ind), 1, varptr%ntime, sorted=.true.)
                         if (ind2 /= fplus_fill_int) then
                             ind = ind2
+                            first_valid_timestep = varptr%finfo%first_valid_timestep
                             streamID = varptr%finfo%streamID
                             varID = varptr%varID
                             exit
@@ -1553,7 +1609,8 @@ contains
             end if
 
             ! move the stream to the timestep of interest
-            status = streamInqTimestep(streamID, ind-1)
+            print*, ind-1+first_valid_timestep
+            status = streamInqTimestep(streamID, ind-1+first_valid_timestep)
             if (status < 1) call fplus_error_print("no data for this time step", "varinfo%get_timestep_data")
 
             ! read the data
