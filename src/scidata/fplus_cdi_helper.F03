@@ -1533,7 +1533,11 @@ contains
                     return 
                 end if
             else
-                if (associated(this%finfo)) first_valid_timestep = this%finfo%first_valid_timestep
+                if (associated(this%finfo)) then 
+                    first_valid_timestep = this%finfo%first_valid_timestep
+                else
+                    first_valid_timestep = 0
+                end if
             end if
 
             ! allocate the array for the result
@@ -1609,7 +1613,6 @@ contains
             end if
 
             ! move the stream to the timestep of interest
-            print*, ind-1+first_valid_timestep
             status = streamInqTimestep(streamID, ind-1+first_valid_timestep)
             if (status < 1) call fplus_error_print("no data for this time step", "varinfo%get_timestep_data")
 
