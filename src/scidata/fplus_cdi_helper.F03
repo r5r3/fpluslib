@@ -1707,7 +1707,7 @@ contains
                 values_rank = 2
                 !$FP end if
                 !$FP if (i == 2) then 
-                if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype /= -1)) then
+                if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype > 0)) then
                     allocate(values_shape(3))
                     values_shape(1) = values_shape_2(1)    
                     values_shape(2) = 1    
