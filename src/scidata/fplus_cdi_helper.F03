@@ -104,11 +104,15 @@ module fplus_cdi_helper
         real (kind=8) :: grid_x_pole = 0.0_8
         real (kind=8) :: grid_y_pole = 90.0_8
         real (kind=8) :: grid_angle = 0
+        ! type of data
+        integer :: data_type = 123 !DATATYPE_FLT32
     contains
         !> @brief   Set the grib code for this variable
         procedure, public :: set_name => varinfo_set_name
         !> @brief   Set the grib code for this variable
         procedure, public :: set_code => varinfo_set_code
+        !> @brief   Set the data type for this variable, default is DATATYPE_FLT32
+        procedure, public :: set_data_type => varinfo_set_data_type
         !> @brief   Set the grid type of this variable, that will reset the coordinate arrays
         procedure, public :: set_gridtype => varinfo_set_gridtype
         !> @brief   Set the fill value for this variable
@@ -131,6 +135,8 @@ module fplus_cdi_helper
         procedure, public :: get_index_of_level => varinfo_get_index_of_level
         !> @brief   Load the data for one time step from the input file, 2d or 3d field
         !$FP generic, public :: get_timestep_data => varinfo_get_timestep_data
+        !> @brief   Calculate monthly sum or average from data of higher temporal resolution, 2d or 3d field
+        !$FP generic, public :: get_monthly_data => varinfo_get_monthly_data
         !> @brief   Save the data for one time step to the output file, 2d or 3d field
         !$FP generic, public :: set_timestep_data => varinfo_set_timestep_data
         !> @brief   Save the data for a constant 2d or 3d field to the output file
@@ -1174,6 +1180,8 @@ contains
                 if (len_trim(ptr%units) > 0) call vlistDefVarUnits(this%vlistID, ptr%varID, trim(ptr%units) // C_NULL_CHAR)
                 ! define the missing value
                 call vlistDefVarMissval(this%vlistID, ptr%varID, ptr%fill_value)
+                ! define the data type
+                call vlistDefVarDatatype(this%vlistID, ptr%varID, ptr%data_type)
             end if
         end do
 
@@ -1267,6 +1275,19 @@ contains
             call fplus_error_print("invalid grib code: " // type_to_string(new_code), "varinfo%set_code", FPLUS_WARN)
         end if
         this%code = new_code
+    end subroutine
+
+    !> @public
+    !> @brief       Set the data type for this variable
+    !> @param[in]   this        reference to the varinfo object, automatically set by fortran
+    !> @param[in]   new_type    the value of the new data type, use DATATYPE_... constants!
+    subroutine varinfo_set_data_type(this, new_type)
+        class(varinfo) :: this
+        integer, intent(in) :: new_type
+        if (new_type < -1 .or. new_type > 332) then
+            call fplus_error_print("invalid data type: " // type_to_string(new_type), "varinfo%set_data_type", FPLUS_WARN)
+        end if
+        this%data_type = new_type
     end subroutine
 
     !> @public
@@ -1650,6 +1671,124 @@ contains
         end subroutine
         !$FP end do
     !$FP end template
+
+
+    !$FP template varinfo_get_monthly_data
+        !$FP D = {dimension(:,:)} {dimension(:,:,:)} {dimension(:,:,:,:)}
+
+        !$FP do nd = 1, 2
+        !> @public
+        !> @brief       calculate monthly sum or average from data of higher temporal resolution
+        !> @details     in the presents of missing values, 20% are allowed. If more values are missing,
+        !>              the the result for this point will also be missing.
+        !> @res         the array to store the calculated values in
+        !> @year        the year of the month to consider
+        !> @month       the month to calculate 
+        !> @mode        sum='s' or average='a|m'
+        subroutine varinfo_get_monthly_data(this, res, year, month, mode)
+            class(varinfo) :: this
+            real (kind=8), ${D(nd)}, allocatable :: res
+            integer, intent(in) :: year, month
+            character (len=1), intent(in) :: mode
+
+            ! local variables
+            real (kind=8), ${D(nd)}, allocatable :: timestep_data
+            real (kind=8), ${D(nd+1)}, allocatable :: all_timestep_data
+            type(list) :: dates_in_month 
+            type(datetime) :: dt
+            integer :: i, j, k, t
+            real (kind=8) :: value, nvalues
+
+            ! check the mode
+            if (mode /= 's' .and. mode /= 'm' .and. mode /= 'a') then
+                call fplus_error_print("invalid mode '" // trim(mode) // "'", "varinfo%get_monthly_data")
+            end if
+
+            ! get all dates that belong to the given month
+            dates_in_month = this%get_dates_in_month(year, month)
+            if (dates_in_month%length() == 0) call fplus_error_print("no values found for the requested month", "varinfo%get_monthly_data")
+
+            ! loop over all timesteps in this month
+            do i = 1, dates_in_month%length()
+                ! read the data for this timestep
+                dt = to_datetime(dates_in_month%get(i))
+                call this%get_timestep_data(timestep_data, dt=dt)
+
+                ! allocate the array 
+                if (i == 1) then
+                    ! the result array
+                    if (allocated(res)) then
+                        if (any(shape(res) /= shape(timestep_data))) then
+                            deallocate(res)
+                            res = timestep_data
+                        end if
+                    else
+                        res = timestep_data
+                    end if
+                    ! the array for all timesteps
+                    !$FP if (nd==1) then
+                        allocate(all_timestep_data(size(res,1), size(res,2), dates_in_month%length()))
+                    !$FP else 
+                        allocate(all_timestep_data(size(res,1), size(res,2), size(res,3), dates_in_month%length()))
+                    !$FP end if
+                end if
+
+                ! store the date for this timestep in the temporal array
+                !$FP if (nd==1) then
+                    all_timestep_data(:,:,i) = timestep_data
+                !$FP else 
+                    all_timestep_data(:,:,:,i) = timestep_data
+                !$FP end if                
+            end do
+
+            ! calculate sum or average
+            do i = 1, size(res, 1)
+                do j = 1, size(res, 2)
+                    !$FP if (nd==1) then
+                        value = 0
+                        nvalues = 0
+                        do t = 1, size(all_timestep_data,3)
+                            if (all_timestep_data(i,j,t) /= this%fill_value) then
+                                value = value + all_timestep_data(i,j,t)
+                                nvalues = nvalues + 1
+                            end if
+                        end do
+                        if (nvalues >= dates_in_month%length()*0.8) then
+                            if (mode == 's') then
+                                res(i,j) = value
+                            else
+                                res(i,j) = value / nvalues
+                            end if
+                        else
+                            res(i,j) = this%fill_value
+                        end if
+                    !$FP else
+                        do k = 1, size(res,3)
+                            value = 0
+                            nvalues = 0
+                            do t = 1, size(all_timestep_data,3)
+                                if (all_timestep_data(i,j,k,t) /= this%fill_value) then
+                                    value = value + all_timestep_data(i,j,k,t)
+                                    nvalues = nvalues + 1
+                                end if
+                            end do
+                            if (nvalues >= dates_in_month%length()*0.8) then
+                                if (mode == 's') then
+                                    res(i,j,k) = value
+                                else
+                                    res(i,j,k) = value / nvalues
+                                end if
+                            else
+                                res(i,j,k) = this%fill_value
+                            end if
+                        end do
+                    !$FP end if
+                end do
+            end do
+        end subroutine
+        !$FP end do
+    !$FP end template
+
 
     !$FP template varinfo_set_constant_data
         !$FP D = {dimension(:)} {dimension(:,:)} {dimension(:,:,:)}
