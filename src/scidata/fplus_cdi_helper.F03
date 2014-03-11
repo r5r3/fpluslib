@@ -1706,7 +1706,18 @@ contains
 
             ! get all dates that belong to the given month
             dates_in_month = this%get_dates_in_month(year, month)
-            if (dates_in_month%length() == 0) call fplus_error_print("no values found for the requested month", "varinfo%get_monthly_data")
+            if (dates_in_month%length() == 0) then 
+                call fplus_error_print("no values found for the requested month: " // type_to_string(year) // "-" // type_to_string(month), "varinfo%get_monthly_data", FPLUS_WARN)
+                if (allocated(res)) then 
+                    res = this%fill_value
+                else
+                  ! get the first dimestep of the input file to see the dimensions of the field
+                    call this%get_timestep_data(timestep_data, tstep=1)
+                    res = timestep_data
+                    res = this%fill_value
+                end if
+                return
+            end if    
 
             ! loop over all timesteps in this month
             do i = 1, dates_in_month%length()
