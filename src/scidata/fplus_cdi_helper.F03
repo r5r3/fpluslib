@@ -24,6 +24,8 @@ module fplus_cdi_helper
         character (len=1), private :: status
         !> @brief   don't read the whole file, but only one selected lead year
         integer, private :: lead_year
+        !> @brief   try to remove rotation from unrotated variables
+        logical :: try_to_remove_rotation = .false.
     contains
         !> @brief   Get a pointer to the variable information for a given code and z-axsis.
         procedure, public :: get_variable => datapool_get_variable
@@ -200,12 +202,23 @@ contains
         !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
         !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
         !>                          year 1 is the first year in the file, year 2 the second. 
-        function new_datapool_1file(infile, status, lead_year) result (res)
+        function new_datapool_1file(infile, status, lead_year, try_to_remove_rotation) result (res)
             type(datapool) :: res
             type(path) :: infile
             character (len=1), intent(in), optional :: status
             integer, intent(in), optional :: lead_year
-            res = new_datapool_nfiles_2((/infile/), status)
+            logical, intent(in), optional :: try_to_remove_rotation
+
+            ! local variables to handle optional arguments
+            integer :: lead_year_intern
+            logical :: try_to_remove_rotation_intern
+            lead_year_intern = -1
+            if (present(lead_year)) lead_year_intern = lead_year
+            try_to_remove_rotation_intern = .false.
+            if (present(try_to_remove_rotation)) try_to_remove_rotation_intern = try_to_remove_rotation
+
+            ! call the array constructor
+            res = new_datapool_nfiles_2((/infile/), status, lead_year_intern, try_to_remove_rotation_intern)
         end function
 
         !$FP intype = {type(path), dimension(:)} {type(list)}
@@ -216,11 +229,12 @@ contains
             !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
             !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
             !>                          year 1 is the first year in the file, year 2 the second. 
-            function new_datapool_nfiles(infiles, status, lead_year) result (res)
+            function new_datapool_nfiles(infiles, status, lead_year, try_to_remove_rotation) result (res)
                 type(datapool) :: res
                 ${intype(j)} :: infiles
                 character (len=1), intent(in), optional :: status
                 integer, intent(in), optional :: lead_year
+                logical, intent(in), optional :: try_to_remove_rotation
 
                 ! local variables
                 integer (kind=8) :: i, lsize
@@ -239,10 +253,17 @@ contains
 
                 ! limit visible file content to specific lead year
                 if (present(lead_year)) then
-                    if (res%status == "w") call fplus_error_print("the lead_year parameter is only valid for reading", "new_datapool")
+                    if (res%status == "w" .and. lead_year .ne. -1) call fplus_error_print("the lead_year parameter is only valid for reading", "new_datapool")
                     res%lead_year = lead_year
                 else
                     res%lead_year = -1
+                end if
+
+                ! should we try to convert curvilinear grids to latlon grid?
+                if (present(try_to_remove_rotation)) then
+                    res%try_to_remove_rotation = try_to_remove_rotation
+                else
+                    res%try_to_remove_rotation = .false.
                 end if
 
                 ! so far, only one file for writing is supported
@@ -262,7 +283,7 @@ contains
                     end if
 
                     ! put the fileinfo into the list
-                    call res%files%add(new_fileinfo(onefile, res%status, res%lead_year))
+                    call res%files%add(new_fileinfo(onefile, res%status, res%lead_year, res%try_to_remove_rotation))
                 end do
                 ! create lists to track cdi resources
                 !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
@@ -740,11 +761,12 @@ contains
     !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
     !>                          year 1 is the first year in the file, year 2 the second. 
     !> @returns     A pointer to the new fileinfo object
-    function new_fileinfo(filename, status, lead_year) result (res)
+    function new_fileinfo(filename, status, lead_year, try_to_remove_rotation) result (res)
         type(path) :: filename
         class(fileinfo), pointer :: res
         character (len=1), intent(in), optional :: status
         integer, intent(in), optional :: lead_year
+        logical, intent(in), optional :: try_to_remove_rotation
 
         ! local variables
         type(list), allocatable :: ls
@@ -844,7 +866,7 @@ contains
                 if (ls%length() > 0 .or. lead_year_intern == -1) then
                     timeaxis = ls
                 else
-                    call fplus_error_print("no input data found for lead year " // type_to_string(lead_year_intern), "new_fileinfo")
+                    call fplus_error_print("no input data found for lead year " // type_to_string(lead_year_intern) // " in file " // trim(filename%name), "new_fileinfo")
                 end if
 
                 ! release the memory of the list
@@ -942,6 +964,25 @@ contains
                             deallocate(info%coord_lat)
                             info%grid_is_rotated = .false.
                         end if              
+                    end if
+
+                    ! try to remove the rotation of an unrotated grid
+                    if (present(try_to_remove_rotation) .and. info%gridtype == GRID_CURVILINEAR) then
+                    if (try_to_remove_rotation .and. .not. is_2d_grid_rotated(info%coord_lon2d, info%coord_lat2d)) then
+                        ! OK, the grid is not rotated. do we have a 1d coordinate? 
+                        if (.not. allocated(info%coord_lon) .and. .not. allocated(info%coord_lat)) then
+                            ! copy one row and one column from the 2d coordinates
+                            info%coord_lon = info%coord_lon2d(:,1)
+                            info%coord_lat = info%coord_lat2d(1,:)
+                        end if
+                        ! remove the 2d coordinates and switch to 1d lonlat grid
+                        deallocate(info%coord_lon2d, info%coord_lat2d)
+                        info%gridtype = GRID_LONLAT
+                        info%grid_is_rotated = .false.
+                        info%grid_x_pole = 0.0_8
+                        info%grid_y_pole = 90.0_8
+                        info%grid_angle = 0.0_8
+                    end if
                     end if
 
                     ! store the zaxis coordinates

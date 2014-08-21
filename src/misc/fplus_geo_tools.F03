@@ -9,7 +9,7 @@ module fplus_geo_tools
     implicit none
     private
     
-    public :: rot_lon_to_range, lon_is_cyclic, point_in_polygon, geo_distance, lonrot_to_lon, latrot_to_lat
+    public :: rot_lon_to_range, lon_is_cyclic, point_in_polygon, geo_distance, lonrot_to_lon, latrot_to_lat, is_2d_grid_rotated
     
     !> @public
     !> @brief       Rotate a cyclic array as fas as needed to cover a given longitude range
@@ -34,6 +34,10 @@ module fplus_geo_tools
     !> @public 
     !> @brief       convert a rotated lat value to real lat value
     !$FP interface template latrot_to_lat
+
+    !> @public 
+    !> @brief       is a curvilinear grid really rotated?
+    !$FP interface template is_2d_grid_rotated
 
 contains
 
@@ -334,4 +338,52 @@ contains
         !$FP end do
     !$FP end template
 
+
+    !$FP template is_2d_grid_rotated
+        !$FP T = {real (kind=4)} {real (kind=8)}
+        !$FP do i = 1, 2
+    
+            !> @public
+            !> @brief       Check if the coordinates of a curvilinear grid belong to an unrotated lon-lat-grid
+            !> @param[in]   lon2d     2D-longitude variable (x,y)
+            !> @param[in]   lat2d     2D-latitude variable (x,y)
+            !> @return      true if the grid is rotated, false if the grid is representable with a 1d coordinate
+            function is_2d_grid_rotated(lon2d, lat2d) result (res)
+                ${T(i)}, dimension(:,:), intent(in) :: lon2d, lat2d
+                logical :: res
+
+                ! local variables
+                integer :: i, j, nx, ny
+                ${T(i)} :: dx, dy
+
+                ! get array dimensions
+                nx = size(lon2d, 1)
+                ny = size(lon2d, 2)
+                dx = abs(lon2d(1,1) - lon2d(2,1))
+                dy = abs(lat2d(1,1) - lat2d(1,2))
+                if (nx /= size(lat2d, 1) .or. ny /= size(lat2d, 2)) call fplus_error_print("size of lon2d and lat2d differ!", "is_2d_grid_rotated")
+
+                ! check longitudes
+                do i = 1, nx
+                    ! do the lon values depend on lat values?
+                    if (all(abs(lon2d(i,:) - lon2d(i,1)) .lt. dx*0.0001)) cycle
+                    ! yes, this grid is rotated!
+                    res = .true.
+                    return
+                end do
+
+                ! check latitude
+                do i = 1, ny
+                    ! do the lat values depend on lon values?
+                    if (all(abs(lat2d(:,i) - lat2d(1,i)) .lt. dy*0.0001)) cycle
+                    ! yes, this grid is rotated!
+                    res = .true.
+                    return
+                end do
+
+                ! the grid is not rotated!
+                res = .false.
+            end function
+        !$FP end do
+    !$FP end template
 end module fplus_geo_tools
