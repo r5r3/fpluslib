@@ -68,6 +68,12 @@ module fplus_path
             character (kind=C_char) :: resolved_name(*)
             type(C_ptr) :: res
         end function
+        function c_getcwd(cwd, len_cwd) result(res) bind(C,name="getcwd")
+            import :: C_char, C_ptr, C_size_t
+            character (kind=C_char) :: cwd(*)
+            integer (kind=C_size_t), value :: len_cwd
+            type(C_ptr) :: res
+        end function
     end interface
 
 contains
@@ -297,7 +303,13 @@ contains
                 temp => res%get(i)
                 select type(temp)
                     type is (path)
-                        filename = trim(this%name) // "/" // trim(temp%name)
+                        if (this%name(1:1) /= '/') then
+                            resolved_name = c_getcwd(filename, int(len(filename), C_size_t))
+                            call ctrim(filename)
+                            filename = trim(filename) // "/" // trim(this%name) // "/" // trim(temp%name) // C_NULL_CHAR
+                        else
+                            filename = trim(this%name) // "/" // trim(temp%name) // C_NULL_CHAR
+                        end if
                         resolved_name = realpath(filename, temp%name)
                         call ctrim(temp%name)
                 end select

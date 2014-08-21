@@ -9,7 +9,7 @@ module fplus_geo_tools
     implicit none
     private
     
-    public :: rot_lon_to_range, lon_is_cyclic, point_in_polygon, geo_distance, lonrot_to_lon, latrot_to_lat, is_2d_grid_rotated
+    public :: rot_lon_to_range, lon_is_cyclic, point_in_polygon, distance_to_polygon, geo_distance, lonrot_to_lon, latrot_to_lat, is_2d_grid_rotated
     
     !> @public
     !> @brief       Rotate a cyclic array as fas as needed to cover a given longitude range
@@ -22,6 +22,10 @@ module fplus_geo_tools
     !> @public
     !> @brief       check if a point is located inside of a polygone
     !$FP interface template point_in_polygon
+
+    !> @public
+    !> @brief       check the distance between a point and a polygon
+    !$FP interface template distance_to_polygon
 
     !> @public
     !> @brief       calculate the distance of two points on earth
@@ -217,6 +221,61 @@ contains
             end function
         !$FP end do
     !$FP end template
+
+
+    !$FP template distance_to_polygon
+        !$FP do T = {real (kind=4)} {real (kind=8)}
+
+            !> @public
+            !> @brief       find the sortest distance between a point a a polygon
+            !> @param[in]   polyx   x-coordinate of the polygone points
+            !> @param[in]   polyy   y-coordinate of the polygone points
+            !> @param[in]   testx   x-coordinate of the point to test
+            !> @param[in]   testy   y-coordinate of the point to test
+            !> @param[in]   is_geo_distance     if true, the function returns the distance in kilometers
+            function distance_to_polygon(polyx, polyy, testx, testy, is_geo_distance) result (res)
+                ${T}, dimension(:), intent(in) :: polyx, polyy
+                ${T}, intent(in) :: testx, testy
+                logical, intent(in), optional :: is_geo_distance
+                ${T} :: res
+                ! local variables
+                integer :: i, npoints
+                logical :: is_geo_distance_intern
+                ${T} :: x, y, l, u, refx, refy, dist
+
+                is_geo_distance_intern = .false.
+                if (present(is_geo_distance)) is_geo_distance_intern = is_geo_distance
+
+                ! the calculation
+                res = -1
+                npoints = size(polyx)
+                do i = 1, npoints - 1  
+                    x = polyx(i+1) - polyx(i)
+                    y = polyy(i+1) - polyy(i)
+                    l = x**2 + y**2
+                    u = ((testx - polyx(i))*x + (testy - polyy(i))*y)/l
+                    if (u .lt. 0.0) then 
+                        u = 0.0
+                    else if (u .ge. l) then
+                        u = 1.0
+                    end if 
+
+                    ! refx and refy are the coordinates of the reference point of a perpendicular line from the test point to the segment of the polyline
+                    refx = polyx(i) + u*x          
+                    refy = polyy(i) + u*y
+                    if (is_geo_distance_intern) then
+                        dist = geo_distance(testx, testy, refx, refy)
+                    else
+                        dist = sqrt((refx - testx)**2 + (refy - testy)**2)
+                    end if
+
+                    ! is this the shortest distance?
+                    if (res == -1 .or. dist < res) res = dist
+                end do
+            end function
+        !$FP end do
+    !$FP end template
+
 
     !$FP template lonrot_to_lon
         !$FP T = {real (kind=4)} {real (kind=8)}

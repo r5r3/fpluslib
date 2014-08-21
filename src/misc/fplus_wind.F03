@@ -69,34 +69,72 @@ contains
         !$FP dtypes_fill = {fplus_fill_real} {fplus_fill_realk8}
         !$FP do i = 1, 2
             !> @brief       Convert wind speed and wind direction to u- und v- wind
-            !> @param[in]   dir_in      array of the directions
-            !> @param[in]   speed_in    array of wind speed
-            !> @param[out]  dir_out     mean wind direction 
-            !> @param[out]  speed_out   mean wind speed
-            subroutine wind_mean(dir_in, speed_in, dir_out, speed_out)
+            !> @param[in]   dir_in          array of the directions
+            !> @param[in]   speed_in        array of wind speed
+            !> @param[out]  dir_out         mean wind direction 
+            !> @param[out]  speed_out       mean wind speed
+            !> @param[in]   allow_missing   set to true to allow single values, not all, to be missing
+            recursive subroutine wind_mean(dir_in, speed_in, dir_out, speed_out, allow_missing)
                 ${dtypes(i)}, intent(in), dimension(:) :: dir_in, speed_in
                 ${dtypes(i)}, intent(out) :: dir_out, speed_out
+                logical, optional :: allow_missing
 
                 ! local variables
                 ${dtypes(i)}, dimension(:), allocatable :: u, v
+                ${dtypes(i)}, dimension(:), allocatable :: non_missing_dir_in, non_missing_speed_in
+                integer :: n_non_missing, i
                 ${dtypes(i)} :: umean, vmean
+                logical :: allow_missing_intern
 
                 ! size of both input arrays must be equal
                 if (size(dir_in) /= size(speed_in)) call fplus_error_print("different size of dir and speed arrays!", "wind_mean")
 
-                ! missing values
-                if (any(dir_in == ${dtypes_fill(i)}) .or. any(speed_in == ${dtypes_fill(i)})) then
-                    dir_out = ${dtypes_fill(i)}
-                    speed_out = ${dtypes_fill(i)}
+                ! allow missing values?
+                if (present(allow_missing)) then
+                    allow_missing_intern = allow_missing
                 else
-                    ! calculate u and v wind components
-                    allocate(u(size(dir_in)), v(size(dir_in)))
-                    call dir_spd_2_u_v(dir_in, speed_in, u, v)
-                    umean = sum(u) / size(u)
-                    vmean = sum(v) / size(v)
+                    allow_missing_intern = .false.
+                end if
 
-                    ! calculate the result
-                    call u_v_2_dir_spd(umean, vmean, dir_out, speed_out) 
+                ! missing values
+                if (.not. allow_missing_intern) then
+                    if (any(dir_in == ${dtypes_fill(i)}) .or. any(speed_in == ${dtypes_fill(i)})) then
+                        dir_out = ${dtypes_fill(i)}
+                        speed_out = ${dtypes_fill(i)}
+                    else
+                        ! calculate u and v wind components
+                        allocate(u(size(dir_in)), v(size(dir_in)))
+                        call dir_spd_2_u_v(dir_in, speed_in, u, v)
+                        umean = sum(u) / size(u)
+                        vmean = sum(v) / size(v)
+
+                        ! calculate the result
+                        call u_v_2_dir_spd(umean, vmean, dir_out, speed_out) 
+                    end if
+                else
+                    ! find all non missing value pairs
+                    n_non_missing = 0
+                    do i = 1, size(dir_in)
+                        if (.not. dir_in(i) == ${dtypes_fill(i)} .and. .not. speed_in(i) == ${dtypes_fill(i)}) n_non_missing = n_non_missing + 1
+                    end do
+                    ! all values are missing
+                    if (n_non_missing == 0) then
+                        dir_out = ${dtypes_fill(i)}
+                        speed_out = ${dtypes_fill(i)}
+                        return
+                    end if
+                    ! create an array with non missing pairs
+                    allocate(non_missing_speed_in(n_non_missing), non_missing_dir_in(n_non_missing))
+                    n_non_missing = 1
+                    do i = 1, size(dir_in)
+                        if (.not. dir_in(i) == ${dtypes_fill(i)} .and. .not. speed_in(i) == ${dtypes_fill(i)}) then
+                            non_missing_dir_in(n_non_missing) = dir_in(i)
+                            non_missing_speed_in(n_non_missing) = speed_in(i)
+                            n_non_missing = n_non_missing + 1
+                        end if
+                    end do
+                    ! run this function on the non missing values
+                    call wind_mean(non_missing_dir_in, non_missing_speed_in, dir_out, speed_out, .false.)
                 end if
             end subroutine
         !$FP end do
