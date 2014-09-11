@@ -25,6 +25,8 @@ module fplus_datetime
         procedure, public :: set => datetime_set
         !> @brief   set single parts of the date
         procedure, public :: get => datetime_get
+        !> @brief   check parts of the date for equality 
+        procedure, public :: isequal => datetime_isequal
         !> @brief   set one single part of the date
         procedure, public :: get_field => datetime_get_field
         !> @brief   get the number of days in the given year
@@ -363,6 +365,68 @@ contains
             itime = ihour * 10000 + iminute * 100 + isecond
         end if
     end subroutine
+
+
+    !> @public
+    !> @brief       check parts of the date for equality, only present parts are checked. The result with no arguments is .true.
+    !> @param[in]   this    reference to the datetime object, automatically set by fortran
+    !> @param[in]   year    get the years, optional
+    !> @param[in]   month   get the months, optional
+    !> @param[in]   day     get the days, optional
+    !> @param[in]   hour    get the hours, optional
+    !> @param[in]   minute  get the minutes, optional
+    !> @param[in]   seconds get the seconds, optional
+    !> @param[in]   idate   get an integer representation of the date YYYYMMDD, optional
+    !> @param[in]   itime   get an integer representation od the time HHMMSS, optional
+    function datetime_isequal(this, year, month, day, hour, minute, second, idate, itime) result(res)
+        class(datetime) :: this
+        integer, intent(in), optional :: year, month, day, hour, minute, idate, itime
+        real (kind=8), intent(in), optional :: second
+        logical :: res
+
+        ! local variables
+        integer :: iyear, imonth, iday, ihour, iminute
+        real (kind=8) :: isecond
+
+        ! calculate the currently stored date
+        call get_date_from_seconds_since_1970(this%time_in_sec1970,iyear,imonth,iday,ihour,iminute,isecond)
+
+        ! the result is true as long as no other condition is false.
+        res = .true.
+
+        ! get a year if present
+        if (present(year)) then
+            if (year /= iyear) res = .false.
+        end if
+        ! get a month if present
+        if (present(month)) then
+            if (month /= imonth) res = .false.
+        end if
+        ! get a day if present
+        if (present(day)) then
+            if (day /= iday) res = .false.
+        end if
+        ! get a hour if present
+        if (present(hour)) then
+            if (hour /= ihour) res = .false.
+        end if
+        ! get a minute if present
+        if (present(minute)) then
+            if (minute /= iminute) res = .false.
+        end if
+        ! get a second if present
+        if (present(second)) then
+            if (second /= isecond) res = .false.
+        end if
+        ! get an integer representation of the date
+        if (present(idate)) then
+            if (idate /= iyear*10000 + imonth * 100 + iday) res = .false.
+        end if
+        ! get an integer representation of the time
+        if (present(itime)) then
+            if (itime /= ihour * 10000 + iminute * 100 + isecond) res = .false.
+        end if
+    end function
 
     !> @public
     !> @brief       set one single part of the date

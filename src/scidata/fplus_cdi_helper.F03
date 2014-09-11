@@ -1850,7 +1850,7 @@ contains
         !> @brief       Save the data for a constant 2d or 3d field to the output file. 
         !> @details     You have to write the constant fields at last (unsure why...)
         !> @param[in]   this    reference to the varinfo object, automatically set by fortran
-        !> @param[out]  values  the array where the data is stored, the rank and shape has to match the information stored
+        !> @param[in]   values  the array where the data is stored, the rank and shape has to match the information stored
         !>                      in the varinfo object
         subroutine varinfo_set_constant_data(this, values)
             class(varinfo) :: this
@@ -1871,7 +1871,7 @@ contains
         !> @details     The timestep can be specified by its number, by its time in seconds since 1970, or by
         !>              a datetime object. This subroutine is for ${i}-dimensional data.
         !> @param[in]   this    reference to the varinfo object, automatically set by fortran
-        !> @param[out]  values  the array where the data is stored, the rank and shape has to match the information stored
+        !> @param[in]   values  the array where the data is stored, the rank and shape has to match the information stored
         !>                      in the varinfo object
         !> @param[in]   tstep   the number of the time-step, first = 1, optional
         !> @param[in]   stime   the time in seconds since 1970 for this time step, optional

@@ -35,12 +35,42 @@ def getDependencies(filename):
     
     return deps
 
+def is_module_or_program(filename):
+    """
+    check if a fortran file is a module, a program, or none
+    """
+    # open the module file
+    infile = open(filename, "r")
+    
+    # create a regular expression for lines with use statements
+    re_pro = re.compile("[\s]*program[\s]+([\S]+)[\s]*", flags=re.IGNORECASE)
+    re_mod = re.compile("[\s]*module[\s]+([\S]+)[\s]*", flags=re.IGNORECASE)
+    
+    # loop over all lines to find use statements
+    result = None
+    for line in infile:
+        match = re_mod.match(line)
+        if match != None:
+            result = "module"
+            break
+        match = re_pro.match(line)
+        if match != None:
+            result = "program"
+            break
+
+    # close the module file
+    infile.close()    
+    return result
+
+
 if __name__ == '__main__':
     # create a parser for command line arguments
     parser = argparse.ArgumentParser(description=__doc__.replace("_at_", "@"), formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--src', required=True, help = "The folder which contains the source files")
     parser.add_argument('--obj', required=True, help = "The folder which will contain the compiled objects")
-    parser.add_argument('--mkobjdir', required=False, action='store_const', const=True, help = "Create the folder structure for the object file and do nothing else.")
+    parser.add_argument('--mkobjdir', required=False, action='store_const', const=True, help="Create the folder structure for the object file and do nothing else.")
+    parser.add_argument('--only_modules', required=False, action='store_const', const=True, help="no program files, only modules. Usefull if more than one program is present.")
+    parser.add_argument('--only_programs', required=False, action='store_const', const=True, help="no module files, only programs. Usefull if more than one program is present.")
     #pares the arguments
     args = parser.parse_args()
 
@@ -48,6 +78,12 @@ if __name__ == '__main__':
     fileList = []
     for root, subFolders, files in os.walk(args.src):
         for file in files:
+            if args.only_modules == True or args.only_programs == True:
+                filetype = is_module_or_program(os.path.join(root,file))
+                if filetype == "module" and args.only_programs == True:
+                    continue
+                if filetype == "program" and args.only_modules == True:
+                    continue
             if not file.endswith("~") and not file.endswith(".inc") and not file.endswith(".h"):
                 fileList.append((root,file))
     
