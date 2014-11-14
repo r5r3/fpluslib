@@ -132,11 +132,8 @@ contains
         
         ! create an temporal copy of the array and sort it
         if (.not. allocated(temp)) then
-            print*, "hier1"
             temp = array(1:n)
-            print*, "hier2"
             call qsort(temp)
-            print*, "hier3"
             level = 1
         else
             level = level +1

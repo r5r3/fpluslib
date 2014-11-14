@@ -2,6 +2,7 @@
 program test_cdf
     use fplus_statistic
     use fplus_strings
+    use fplus_array_tools
     implicit none
     
     ! some example data array
