@@ -62,6 +62,8 @@ module fplus_list
         procedure, public :: to_string => list_to_string
         !> @brief   Calculate a hashcode for the list
         procedure, public :: hashcode => list_hashcode
+        !> @brief   Reverse the order of the list. first element will be last and last will be first
+        procedure, public :: reverse => list_reverse
     end type
     ! make the constructor public
     public :: new_list
@@ -588,6 +590,49 @@ contains
             end subroutine
         !$FP end do
     !$FP end template
+
+    !> @public
+    !> @brief   Reverse the order of the list. first element will be last and last will be first
+    subroutine list_reverse(this)
+        class(list) :: this
+
+        ! local variables
+        class(element), pointer :: e1, e2, e3, e4, rlist
+
+        ! do nothing if the length of the list is one
+        if (this%length() <= 1) return
+
+        ! the new first and last element
+        e1 => this%lastElement
+        e2 => this%firstElement
+        
+        ! loop over all elements and exchange next and prev
+        e3 => this%lastElement    
+        rlist => e1 
+        do while (associated(e3%prevElement))
+            e4 => e3%prevElement
+            rlist%nextElement => e4
+            rlist => e4
+            e3 => e4
+        end do
+        rlist%nextElement => null()
+        e1%prevElement => null()
+
+        ! correct prevElement pointers
+        e3 => e1
+        do while (associated(e3%nextElement))
+            e3%nextElement%prevElement => e3
+            e3 => e3%nextElement
+        end do
+
+        ! set new first and last element
+        this%firstElement => e1
+        this%lastElement => e2
+
+        ! unset stored status
+        this%last_index_in_get = 0
+        this%last_element_in_get => null()
+    end subroutine
 
     !> @public
     !> @brief   Returns the number of elements in this list

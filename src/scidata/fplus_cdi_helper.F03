@@ -70,7 +70,7 @@ module fplus_cdi_helper
 
     !> @brief   Some information about a variable in a file
     type, extends(object), public :: varinfo
-        character (len=100), public :: name = "", standard_name = "", longname = "", units = ""
+        character (len=100), public :: name = "", standard_name = "", longname = "", units = "", zaxis_units = ""
         ! the dimensions of this variable
         integer :: nlon = -1, nlat = -1, nzval = -1, ntime = 0
         !> @brief   An Array with the time in seconds since 1970
@@ -304,12 +304,14 @@ contains
     !> @param[in]   stdname     the standard_name of the variable, optional
     !> @param[in]   lon_range   an one dimensional array with the smallest and the largest lon value, optional
     !> @param[in]   lat_range   an one dimensional array with the smallest and the largest lat value, optional
+    !> @param[in]   nhalo       some calculations need a few border pixels (halo) around the requested area, use with lon_range and lat_range
     !> @return      null if nothing was found, else a pointer to a varinfo object
-    function datapool_get_variable(this, code, zaxis, name, std_name, lon_range, lat_range) result (res)
+    function datapool_get_variable(this, code, zaxis, name, std_name, lon_range, lat_range, nhalo) result (res)
         class(datapool) :: this
         integer, intent(in), optional :: code, zaxis
         character (len=*), intent(in), optional :: name, std_name
         real(kind=8), dimension(2), optional :: lon_range, lat_range
+        integer, optional :: nhalo
         class(varinfo), pointer :: res
 
         ! local variables
@@ -486,8 +488,6 @@ contains
                         else
                             call fplus_error_print("the array needs to be rotated in longitude direction but is not cyclic!", "datapool%get_variable", FPLUS_ERR)
                         end if
-                    else
-                        call fplus_error_print("the array needs to be rotated in longitude direction but the order of the lon coordinate is not supported!", "datapool%get_variable", FPLUS_ERR)
                     end if
                     ! create the subsection
                     if (res%parent%coord_lon(lbound(lon_temp, 1)) < res%parent%coord_lon(ubound(lon_temp, 1))) then
@@ -559,6 +559,30 @@ contains
             if (any(res%parent_subscripts == fplus_fill_int)) then
                 deallocate(res)
                 return
+            end if
+
+            ! add a halo around the selected area?
+            if (present(nhalo)) then
+                if (res%parent_subscripts(1,1) > nhalo) then
+                    res%parent_subscripts(1,1) = res%parent_subscripts(1,1) - nhalo
+                else
+                    call fplus_error_print("input array to small for requested halo size!", "datapool%get_variable_with_code_zaxis", FPLUS_WARN)
+                end if
+                if (res%parent_subscripts(1,2) < res%parent%nlon - nhalo) then
+                    res%parent_subscripts(1,2) = res%parent_subscripts(1,2) + nhalo
+                else
+                    call fplus_error_print("input array to small for requested halo size!", "datapool%get_variable_with_code_zaxis", FPLUS_WARN)
+                end if
+                if (res%parent_subscripts(2,1) > nhalo) then
+                    res%parent_subscripts(2,1) = res%parent_subscripts(2,1) - nhalo
+                else
+                    call fplus_error_print("input array to small for requested halo size!", "datapool%get_variable_with_code_zaxis", FPLUS_WARN)
+                end if
+                if (res%parent_subscripts(2,2) < res%parent%nlat - nhalo) then
+                    res%parent_subscripts(2,2) = res%parent_subscripts(2,2) + nhalo
+                else
+                    call fplus_error_print("input array to small for requested halo size!", "datapool%get_variable_with_code_zaxis", FPLUS_WARN)
+                end if
             end if
 
             ! create the coordinate arrays
@@ -991,6 +1015,8 @@ contains
                     info%nzval = zaxisInqSize(zaxisID)
                     allocate(info%coord_z(info%nzval))
                     call zaxisInqLevels(zaxisID, info%coord_z)
+                    call zaxisInqUnits(zaxisID, info%zaxis_units)
+                    call ctrim(info%zaxis_units)
 
                     ! store a pointer to the fileinfo object
                     info%finfo => res
@@ -1186,6 +1212,7 @@ contains
                 call list_zaxisID%add(ptr%zaxisID, copy=.true.)
                 if (size(ptr%coord_z) /= ptr%nzval) call fplus_error_print("size of zaxis coordinate array and nzval don't fit together", "fileinfo%fix_variable_definition")
                 call zaxisDefLevels(ptr%zaxisID, ptr%coord_z)
+                if (len_trim(ptr%zaxis_units) /= 0) call zaxisDefUnits(ptr%zaxisID, trim(ptr%zaxis_units) // C_NULL_CHAR)
                 ! are there other variables with the same zaxis?
                 do i = 1, this%variables%length()
                     temp => this%variables%get(i)
@@ -1298,7 +1325,7 @@ contains
         if (present(name)) then
             i = index(name, " ")
             if (i > 0) then
-                call fplus_error_print("invalid variable name: " // name, "varinfo%set_name", FPLUS_WARN)
+                call fplus_error_print("invalid variable name: " // trim(name), "varinfo%set_name", FPLUS_WARN)
             else
                 this%name = name
             end if
@@ -1388,10 +1415,11 @@ contains
         !> @public
         !> @brief       Define a new zaxis for this variable
         !> @param[in]   this        reference to the varinfo object, automatically set by fortran
-        subroutine varinfo_set_zaxis(this, coord_z, type_z)
+        subroutine varinfo_set_zaxis(this, coord_z, type_z, units)
             class(varinfo) :: this
             ${T(i)}, intent(in) :: coord_z
             integer :: type_z
+            character(len=*), optional :: units
 
             ! remove the old coordinate
             if (allocated(this%coord_z)) deallocate(this%coord_z)
@@ -1402,9 +1430,10 @@ contains
             ! copy the values
             this%coord_z = coord_z
 
-            ! store the type
+            ! store the type and the name
             this%zaxistype = type_z
             this%nzval = ${COORD_SIZE(i)}
+            if (present(units)) this%zaxis_units = units
         end subroutine
         !$FP end do
     !$FP end template
@@ -1639,7 +1668,7 @@ contains
                 ! get the data from the parent variable
                 call this%parent%get_timestep_data(temp, tstep, stime, dt, levels)
                 ! is there the need to rotate this array
-                if (this%rotated_by_npoints /= 0) temp = cshift(temp, this%rotated_by_npoints)
+                if (this%rotated_by_npoints /= 0) call rotate_array(temp, this%rotated_by_npoints)
                 ! assign the subsection to the result array
                 if (.not.present(levels)) then 
                     res = temp(this%parent_subscripts(1,1):this%parent_subscripts(1,2), this%parent_subscripts(2,1):this%parent_subscripts(2,2) ${PSUB3(i)})
@@ -1889,15 +1918,24 @@ contains
             integer, dimension(:), allocatable :: values_shape, values_shape_2
             integer :: values_rank
 
+            ! get the dimensions of the array
+            values_shape_2 = shape(values)
+
             ! the unstructured grid has a y-dimension that can be omitted
             if (this%gridtype == GRID_UNSTRUCTURED) then
-                ! get the dimensions of the array
-                values_shape_2 = shape(values)
                 !$FP if (i == 1) then 
-                allocate(values_shape(2))
-                values_shape(1) = values_shape_2(1)
-                values_shape(2) = 1
-                values_rank = 2
+                if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype > 0)) then
+                    allocate(values_shape(3))
+                    values_shape(1) = values_shape_2(1)    
+                    values_shape(2) = 1    
+                    values_shape(3) = 1
+                    values_rank = 3
+                else
+                    allocate(values_shape(2))
+                    values_shape(1) = values_shape_2(1)
+                    values_shape(2) = 1
+                    values_rank = 2
+                end if    
                 !$FP end if
                 !$FP if (i == 2) then 
                 if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype > 0)) then
@@ -1916,9 +1954,22 @@ contains
                 values_rank = 3
                 !$FP end if
             else
-                ! get the dimensions of the array
-                values_shape = shape(values)
+                ! the arrays are allowed to be 2d if the z dimension is one
+                !$FP if (i == 2) then 
+                if (this%nzval == 1 .and. this%zaxistype > 0) then
+                    allocate(values_shape(3))
+                    values_shape(1) = values_shape_2(1)
+                    values_shape(2) = values_shape_2(2)
+                    values_shape(3) = 1
+                    values_rank = 3
+                else
+                    values_shape = values_shape_2
+                    values_rank = size(values_shape)
+                end if
+                !$FP else
+                values_shape = values_shape_2
                 values_rank = size(values_shape)
+                !$FP end if
             end if
             ! call the internal subroutine
             call this%varinfo_set_timestep_data_intern(values, values_rank, values_shape, tstep, stime, dt)
@@ -1954,7 +2005,7 @@ contains
         if (dim_count /= values_rank) then 
             print*, "Nominal number of dimensions: ", dim_count
             print*, "Actual number of dimensions:  ", values_rank
-            print*, "Variable Name: ", this%name
+            print*, "Variable Name: ", trim(this%name)
             print*, "variable Code: ", this%code
             call fplus_error_print("wrong number of dimension!", "varinfo%set_timestep_data")
         end if
@@ -1980,7 +2031,7 @@ contains
         if (any(nominal_shape /= values_shape)) then
             print*, "Nominal shape: ", nominal_shape
             print*, "Actual shape:  ", values_shape
-            print*, "Variable Name: ", this%name
+            print*, "Variable Name: ", trim(this%name)
             print*, "variable Code: ", this%code
             call fplus_error_print("wrong shape of values array!", "varinfo%set_timestep_data")
         end if
@@ -2235,6 +2286,7 @@ contains
         res%units               = this%units
         res%code                = this%code
         res%zaxistype           = this%zaxistype
+        res%zaxis_units         = this%zaxis_units
         res%gridtype            = this%gridtype
         res%is_constant         = this%is_constant
         res%coord_lon_flipped   = this%coord_lon_flipped
