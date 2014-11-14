@@ -70,7 +70,7 @@ contains
             !> @public
             !> @brief           quick sort algorithm
             !> @param[inout]    array   array to be sorted (1d)
-            subroutine qsort(array)
+            recursive subroutine qsort(array)
                 ${numeric(i)}, dimension(:) :: array
 
                 ! local variables
