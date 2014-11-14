@@ -1,9 +1,3 @@
-#debuging
-#ifort
-#DEBUGFLAGS=-g -traceback -check bounds
-#gfortran
-#DEBUGFLAGS=-g -fbacktrace -fbounds-check
-
 # the default extension for a dynamic library
 OS=@OS@
 DYLIBEXT=@DYLIBEXT@
@@ -16,13 +10,31 @@ else
 endif
 
 # select a compiler
-FC=@FC@ $(DEBUGFLAGS)
-CC=@CC@ $(DEBUGFLAGS)
+FC=@FC@
+CC=@CC@
 FCFLAGS=@FCFLAGS@ @FC_MODINC@include @FC_MODOUT@include
 CCFLAGS=@CFLAGS@ 
 
 # create a list of all objects
 SRCOBJ:=$(shell scripts/module_build_order.py --src src --obj build)
+
+# compile for debuging 
+ifeq ($(FC),ifort)
+	FCDEBUG=-g -traceback -check bounds -O0
+	CCDEBUG=-g -O0
+endif
+ifeq ($(FC),gfortran)
+	FCDEBUG=-g -fbacktrace -fbounds-check -O0
+	CCDEBUG=-g -O0
+endif
+
+# debug and profile target
+debug: FCFLAGS += $(FCDEBUG)
+debug: CCFLAGS += $(CCDEBUG)
+debug: bin include lib build lib/libfplus.a
+profile: FCFLAGS += -pg
+profile: CCFLAGS += -pg
+profile: debug
 
 # compile everything
 all: bin include lib build lib/libfplus.$(DYLIBEXT) lib/libfplus.a
@@ -63,8 +75,8 @@ bin/test-up-2: testsrc/test-up-2.f90
 
 
 # rule to link binaries
-bin/%: build/%.o lib/libfplus.$(DYLIBEXT) 
-	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) $<
+bin/%: build/%.o lib/libfplus.a
+	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) $?
 
 	
 # rule to compile fortran files
