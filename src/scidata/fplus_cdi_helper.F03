@@ -486,6 +486,8 @@ contains
                         else
                             call fplus_error_print("the array needs to be rotated in longitude direction but is not cyclic!", "datapool%get_variable", FPLUS_ERR)
                         end if
+                    else
+                        call fplus_error_print("the array needs to be rotated in longitude direction but the order of the lon coordinate is not supported!", "datapool%get_variable", FPLUS_ERR)
                     end if
                     ! create the subsection
                     if (res%parent%coord_lon(lbound(lon_temp, 1)) < res%parent%coord_lon(ubound(lon_temp, 1))) then
@@ -1637,7 +1639,7 @@ contains
                 ! get the data from the parent variable
                 call this%parent%get_timestep_data(temp, tstep, stime, dt, levels)
                 ! is there the need to rotate this array
-                if (this%rotated_by_npoints /= 0) call rotate_array(temp, this%rotated_by_npoints)
+                if (this%rotated_by_npoints /= 0) temp = cshift(temp, this%rotated_by_npoints)
                 ! assign the subsection to the result array
                 if (.not.present(levels)) then 
                     res = temp(this%parent_subscripts(1,1):this%parent_subscripts(1,2), this%parent_subscripts(2,1):this%parent_subscripts(2,2) ${PSUB3(i)})

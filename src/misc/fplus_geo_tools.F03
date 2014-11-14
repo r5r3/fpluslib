@@ -88,8 +88,7 @@ contains
                     call rot_lon_to_range(range, old_coord_array, new_coord_array, np)
                     
                     ! rotate the data array
-                    new_array = old_array
-                    call rotate_array(new_array, np)
+                    new_array = cshift(old_array, np)
                     if (present(npoints)) npoints = np
                 end subroutine
             !$FP end do
@@ -157,12 +156,12 @@ contains
                 i = 0
                 if (.not.is_monotonic(new_coord_array, order=direction)) then
                     ! find the first point where the array is not monotonic
-                    do i = lbound(new_coord_array, 1) +1, ubound(new_coord_array, 1)
-                        if ((new_coord_array(i) > new_coord_array(i-1) .and. direction == -1) .or. &
-                            (new_coord_array(i) < new_coord_array(i-1) .and. direction == 1)) then
+                    do i = lbound(new_coord_array, 1), ubound(new_coord_array, 1)-1
+                        if ((new_coord_array(i+1) > new_coord_array(i) .and. direction == -1) .or. &
+                            (new_coord_array(i+1) < new_coord_array(i) .and. direction == 1)) then
                             ! the array will be rotated by i points
                             if (present(npoints)) npoints = i
-                            call rotate_array(new_coord_array, i)
+                            new_coord_array = cshift(new_coord_array, i)
                             ! leave the loop 
                             exit
                         end if

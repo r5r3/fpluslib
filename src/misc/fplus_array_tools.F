@@ -5,10 +5,6 @@ module fplus_array_tools
     use fplus_array_tools_2
 
     !>@ brief   Interface for the implementation of is_monotonic
-    interface template rotate_array
-    end interface
-
-    !>@ brief   Interface for the implementation of is_monotonic
     interface template is_monotonic
     end interface
 
@@ -53,31 +49,6 @@ module fplus_array_tools
     end interface
 
 contains
-
-    template rotate_array
-        replace :: T => numeric
-        replace, foreach(T) :: DIMDOTS => nil ; ,: ; ,:,: ; ,:,:,:
-    contains
-        !> @brief       Take the first n points from the array and shift them to the end of the array
-        !> @param[in]   array   the array to rotate
-        !> @param[in]   n       the number of points by which the array will be rotated
-        subroutine rotate_array(array, n)
-            T, dimension(: DIMDOTS) :: array
-            integer :: n
-            ! local variables
-            integer :: length
-            T, dimension(: DIMDOTS), allocatable :: temp
-            ! is n valid?
-            if (n == 0) return
-            if (n < 0 .or. n > size(array, 1)) call fplus_error_print("invalid number of points to rotate", "rotate_array")
-            ! perform the shift
-            temp = array
-            length = size(array, 1)
-            temp(length-n+2:length DIMDOTS) = array(:n-1 DIMDOTS)
-            temp(1:length-n+1 DIMDOTS) = array(n: DIMDOTS)
-            array = temp
-        end subroutine
-    end template
 
     template is_monotonic
         replace :: T => real (kind=4); real (kind=8); integer (kind=4); integer (kind=8)
