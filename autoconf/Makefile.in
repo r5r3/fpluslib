@@ -28,6 +28,9 @@ ifeq ($(FC),gfortran)
 	CCDEBUG=-g -O0
 endif
 
+# compile everything
+all: bin include lib build lib/libfplus.$(DYLIBEXT) lib/libfplus.a
+
 # debug and profile target
 debug: FCFLAGS += $(FCDEBUG)
 debug: CCFLAGS += $(CCDEBUG)
@@ -35,9 +38,6 @@ debug: bin include lib build lib/libfplus.a
 profile: FCFLAGS += -pg
 profile: CCFLAGS += -pg
 profile: debug
-
-# compile everything
-all: bin include lib build lib/libfplus.$(DYLIBEXT) lib/libfplus.a
 
 # create folders
 bin:

@@ -306,12 +306,13 @@ contains
     !> @param[in]   lat_range   an one dimensional array with the smallest and the largest lat value, optional
     !> @param[in]   nhalo       some calculations need a few border pixels (halo) around the requested area, use with lon_range and lat_range
     !> @return      null if nothing was found, else a pointer to a varinfo object
-    function datapool_get_variable(this, code, zaxis, name, std_name, lon_range, lat_range, nhalo) result (res)
+    function datapool_get_variable(this, code, zaxis, name, std_name, lon_range, lat_range, nhalo, all_match) result (res)
         class(datapool) :: this
         integer, intent(in), optional :: code, zaxis
         character (len=*), intent(in), optional :: name, std_name
         real(kind=8), dimension(2), optional :: lon_range, lat_range
         integer, optional :: nhalo
+        logical, optional :: all_match
         class(varinfo), pointer :: res
 
         ! local variables
@@ -327,19 +328,27 @@ contains
         real(kind=8), dimension(:,:), allocatable :: lon_temp2d
         integer, dimension(2) :: lon_type
         integer :: i,j
+        integer :: n_have_to_match
 
         ! set the result to null in the case that nothing is found
         res => null()
 
-	    ! check if any information about the variable is given
+	    ! check if any information about the variable is given, zaxis is not counted. if given, it has to match!
         n_qualifier = 0
         if (present(code)) n_qualifier = n_qualifier + 1
-        if (present(zaxis)) n_qualifier = n_qualifier + 1
         if (present(name)) n_qualifier = n_qualifier + 1
         if (present(std_name)) n_qualifier = n_qualifier + 1
         if (n_qualifier == 0) then
             call fplus_error_print("no information about the variable given", "datapool%get_variable", FPLUS_WARN)
             return
+        end if
+
+        ! how many of the given informations have to match?
+        n_have_to_match = 1
+        if (present(all_match)) then
+            if (all_match) then 
+                n_have_to_match = n_qualifier
+            end if
         end if
 
         ! create a list for all matches
@@ -357,12 +366,20 @@ contains
                 varptr => to_varinfo(ptr)
                 matching_qualifier = 0
                 ! the zaxis if present has to match
-                if (present(zaxis) .and. zaxis /= varptr%zaxistype) cycle
+                if (present(zaxis)) then 
+                    if (zaxis /= varptr%zaxistype) cycle
+                end if
                 ! one of the parameters name, code, or standard_name has to match
-                if (present(code) .and. code == varptr%code) matching_qualifier = matching_qualifier + 1
-                if (present(name) .and. trim(name) == trim(varptr%name)) matching_qualifier = matching_qualifier + 1
-                if (present(std_name) .and. trim(std_name) == trim(varptr%standard_name) .and. len_trim(std_name) > 0) matching_qualifier = matching_qualifier + 1
-                if (matching_qualifier == 0) cycle
+                if (present(code)) then
+                    if (code == varptr%code) matching_qualifier = matching_qualifier + 1
+                end if
+                if (present(name)) then
+                    if (trim(name) == trim(varptr%name)) matching_qualifier = matching_qualifier + 1
+                end if
+                if (present(std_name)) then
+                    if (trim(std_name) == trim(varptr%standard_name) .and. len_trim(std_name) > 0 .and. len_trim(varptr%standard_name) > 0) matching_qualifier = matching_qualifier + 1
+                end if
+                if (matching_qualifier < n_have_to_match) cycle
                 ! add the variable to the list of matches
                 call matches%add(varptr)
             end do
@@ -1918,59 +1935,16 @@ contains
             integer, dimension(:), allocatable :: values_shape, values_shape_2
             integer :: values_rank
 
-            ! get the dimensions of the array
+            ! get the dimensions of the array, only dimensions different from 1 matter
             values_shape_2 = shape(values)
-
-            ! the unstructured grid has a y-dimension that can be omitted
-            if (this%gridtype == GRID_UNSTRUCTURED) then
-                !$FP if (i == 1) then 
-                if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype > 0)) then
-                    allocate(values_shape(3))
-                    values_shape(1) = values_shape_2(1)    
-                    values_shape(2) = 1    
-                    values_shape(3) = 1
-                    values_rank = 3
-                else
-                    allocate(values_shape(2))
-                    values_shape(1) = values_shape_2(1)
-                    values_shape(2) = 1
-                    values_rank = 2
-                end if    
-                !$FP end if
-                !$FP if (i == 2) then 
-                if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype > 0)) then
-                    allocate(values_shape(3))
-                    values_shape(1) = values_shape_2(1)    
-                    values_shape(2) = 1    
-                    values_shape(3) = values_shape_2(2)
-                    values_rank = 3
-                else
-                    values_shape = values_shape_2
-                    values_rank = 2
-                end if    
-                !$FP end if
-                !$FP if (i == 3) then 
-                values_shape = values_shape_2
-                values_rank = 3
-                !$FP end if
-            else
-                ! the arrays are allowed to be 2d if the z dimension is one
-                !$FP if (i == 2) then 
-                if (this%nzval == 1 .and. this%zaxistype > 0) then
-                    allocate(values_shape(3))
-                    values_shape(1) = values_shape_2(1)
-                    values_shape(2) = values_shape_2(2)
-                    values_shape(3) = 1
-                    values_rank = 3
-                else
-                    values_shape = values_shape_2
-                    values_rank = size(values_shape)
-                end if
-                !$FP else
-                values_shape = values_shape_2
+            if (any(values_shape_2 /= 1)) then
+                values_shape = pack(values_shape_2, values_shape_2 /= 1)
                 values_rank = size(values_shape)
-                !$FP end if
+            else
+                values_shape = (/1/)
+                values_rank = 0
             end if
+
             ! call the internal subroutine
             call this%varinfo_set_timestep_data_intern(values, values_rank, values_shape, tstep, stime, dt)
         end subroutine
@@ -1999,42 +1973,44 @@ contains
 
         ! how many dimensions do we have?
         dim_count = 0
-        if (this%get_x_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) dim_count = 1
-        if (this%get_y_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) dim_count = dim_count + 1
-        if (this%nzval > 1 .or. (this%nzval == 1 .and. this%zaxistype > 0)) dim_count = dim_count + 1
+        if (this%get_x_size() > 1) dim_count = 1
+        if (this%get_y_size() > 1) dim_count = dim_count + 1
+        if (this%nzval > 1) dim_count = dim_count + 1
         if (dim_count /= values_rank) then 
-            print*, "Nominal number of dimensions: ", dim_count
-            print*, "Actual number of dimensions:  ", values_rank
+            print*, "Nominal number of dimensions different from 1: ", dim_count
+            print*, "Actual number of dimensions different from 1:  ", values_rank
             print*, "Variable Name: ", trim(this%name)
             print*, "variable Code: ", this%code
             call fplus_error_print("wrong number of dimension!", "varinfo%set_timestep_data")
         end if
 
         ! create an array with the nominal shape if the variable
-        allocate(nominal_shape(dim_count))
-        ind = 1
-        if (this%get_x_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) then
-            nominal_shape(ind) = this%get_x_size()
-            ind = ind +1
-        end if
-        if (this%get_y_size() > 1 .or. this%gridtype == GRID_UNSTRUCTURED) then
-            nominal_shape(ind) = this%get_y_size()
-            ind = ind +1
-        end if
-        if (this%nzval > 1  .or. (this%nzval == 1 .and. this%zaxistype > 0)) then
-            nominal_shape(ind) = this%nzval
-            ind = ind +1
+        if (dim_count > 0) then
+            allocate(nominal_shape(dim_count))
+            ind = 1
+            if (this%get_x_size() > 1) then
+                nominal_shape(ind) = this%get_x_size()
+                ind = ind +1
+            end if
+            if (this%get_y_size() > 1) then
+                nominal_shape(ind) = this%get_y_size()
+                ind = ind +1
+            end if
+            if (this%nzval > 1) then
+                nominal_shape(ind) = this%nzval
+                ind = ind +1
+            end if
+
+            ! compare the shapes
+            if (any(nominal_shape /= values_shape)) then
+                print*, "Nominal shape: ", nominal_shape
+                print*, "Actual shape:  ", values_shape
+                print*, "Variable Name: ", trim(this%name)
+                print*, "variable Code: ", this%code
+                call fplus_error_print("wrong shape of values array!", "varinfo%set_timestep_data")
+            end if
         end if
         ind = -1
-
-        ! compare the shapes
-        if (any(nominal_shape /= values_shape)) then
-            print*, "Nominal shape: ", nominal_shape
-            print*, "Actual shape:  ", values_shape
-            print*, "Variable Name: ", trim(this%name)
-            print*, "variable Code: ", this%code
-            call fplus_error_print("wrong shape of values array!", "varinfo%set_timestep_data")
-        end if
 
         ! check if the variables definition is fixed, of not do it now.
         if (.not.this%finfo%fixed) call this%finfo%fix_variable_definition()
