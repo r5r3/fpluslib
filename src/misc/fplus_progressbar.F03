@@ -11,6 +11,7 @@ module fplus_progressbar
         integer (kind=8) :: nmax
         integer (kind=8) :: width
         integer (kind=8) :: last_print_pos = -1
+        character(len=200) :: prefix
     contains
         !$FP generic, public :: update => progressbar_update
     end type
@@ -22,15 +23,22 @@ contains
     ! construct a new progressbar
     !$FP template new_progressbar
         !$FP do i = {4} {8}
-            function new_progressbar(nmax, width) result (res)
-                integer (kind=${i}) :: nmax
-                integer, optional :: width
+            function new_progressbar(nmax, width, prefix) result (res)
+                integer (kind=${i}), intent(in) :: nmax
+                integer, optional, intent(in) :: width
+                character(len=*), optional, intent(in) :: prefix
+
                 type(progressbar) :: res
                 res%nmax = nmax
                 if (present(width)) then
                     res%width = width
                 else
                     res%width = 100
+                end if
+                if (present(prefix)) then
+                    res%prefix = prefix
+                else
+                    res%prefix = ""
                 end if
             end function
         !$FP end do
@@ -58,7 +66,7 @@ contains
                 end if
 
                 ! print it
-                write(*, "(A)", advance="no") " ["
+                write(*, "(A,A)", advance="no") trim(this%prefix), " ["
                 do i = 1, print_pos
                     write(*, "(A)", advance="no") "="
                 end do
