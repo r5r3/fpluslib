@@ -3254,7 +3254,7 @@ fi
 fi
 
 else
-  with_jasper=no
+  with_hdf5=no
 fi
 
 
@@ -3277,7 +3277,7 @@ fi
 fi
 
 else
-  with_jasper=no
+  with_szip=no
 fi
 
 
@@ -3587,6 +3587,59 @@ fi
 #AC_LANG_POP([Fortran])
 
 # udunits2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for XML_ParserCreate in -lexpat" >&5
+$as_echo_n "checking for XML_ParserCreate in -lexpat... " >&6; }
+if ${ac_cv_lib_expat_XML_ParserCreate+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lexpat "-lexpat" $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char XML_ParserCreate ();
+int
+main ()
+{
+return XML_ParserCreate ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_expat_XML_ParserCreate=yes
+else
+  ac_cv_lib_expat_XML_ParserCreate=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_expat_XML_ParserCreate" >&5
+$as_echo "$ac_cv_lib_expat_XML_ParserCreate" >&6; }
+if test "x$ac_cv_lib_expat_XML_ParserCreate" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBEXPAT 1
+_ACEOF
+
+  LIBS="-lexpat $LIBS"
+
+else
+
+		{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "the expat library is needed for the udunits2 library
+See \`config.log' for more details" "$LINENO" 5; }
+
+fi
+
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ut_new_system in -ludunits2" >&5
 $as_echo_n "checking for ut_new_system in -ludunits2... " >&6; }
 if ${ac_cv_lib_udunits2_ut_new_system+:} false; then :

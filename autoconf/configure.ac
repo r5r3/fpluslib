@@ -136,7 +136,7 @@ AC_ARG_WITH([hdf5],
                     ]
                 )
             ],
-            [with_jasper=no])
+            [with_hdf5=no])
 
 AC_ARG_WITH([szip],
             [AS_HELP_STRING([--with-szip],
@@ -154,7 +154,7 @@ AC_ARG_WITH([szip],
                     ]
                 )
             ],
-            [with_jasper=no])
+            [with_szip=no])
 
 
 AS_IF([test "x$with_jasper" != xno],
@@ -226,12 +226,19 @@ AS_IF([test "x$with_cdi" != xno],
 #AC_LANG_POP([Fortran])
 
 # udunits2
+AC_CHECK_LIB([expat], [XML_ParserCreate], 
+	[], 
+	[
+		AC_MSG_FAILURE([the expat library is needed for the udunits2 library])
+	], 
+	[])
+
 AC_CHECK_LIB([udunits2], [ut_new_system], 
 	[], 
 	[
 		AC_MSG_FAILURE([the udunits2 library is needed for the datetime module])
 	], 
-	["-lexpat"])
+	[])
 
 AC_OUTPUT(autoconf/Makefile)
 mv autoconf/Makefile Makefile
