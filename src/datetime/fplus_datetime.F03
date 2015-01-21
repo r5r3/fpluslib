@@ -57,6 +57,8 @@ module fplus_datetime
     integer, parameter, public :: DT_HOUR   = 4
     integer, parameter, public :: DT_MINUTE = 5
     integer, parameter, public :: DT_SECOND = 6
+    integer, parameter, public :: DT_IDATE  = 7
+    integer, parameter, public :: DT_ITIME  = 8
 
     !> @brief   assignment for datetime object
     public :: assignment (=), to_datetime
@@ -454,6 +456,10 @@ contains
                 res = iminute
             case (DT_SECOND)
                 res = int(isecond)
+            case (DT_IDATE)
+                res = iyear*10000 + imonth * 100 + iday
+            case (DT_ITIME)
+                res = ihour * 10000 + iminute * 100 + int(isecond)
             case default
                 res = fplus_fill_int
         end select
