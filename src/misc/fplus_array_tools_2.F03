@@ -192,11 +192,11 @@ contains
                 nvalid = (cols-2)*(rows-2)
                 do i=2, rows-1                       ! rows
                     do j=2, cols-1                   ! columns
-                        if (conv(i,j) == fill_value) then 
+                        if (conv(j,i) == fill_value) then 
                             nvalid = nvalid -1
                             cycle
                         end if
-                        result = result + abs(conv(i,j))
+                        result = result + abs(conv(j,i))
                     end do
                 end do
                 !$FP if (numeric_kind(i) == 8) then
@@ -238,9 +238,9 @@ contains
                 nvalid = 0
                 do i=1, rows
                     do j=1, cols
-                        if (input(i,j) /= fill_value) then
+                        if (input(j,i) /= fill_value) then
                             nvalid = nvalid + 1
-                            mean = mean + input(i,j)
+                            mean = mean + input(j,i)
                         end if
                     end do
                 end do
@@ -254,8 +254,8 @@ contains
                 stddev = 0
                 do i=1, rows
                     do j=1, cols
-                        if (input(i,j) /= fill_value) then
-                            stddev = stddev + (input(i,j) - mean)**2
+                        if (input(j,i) /= fill_value) then
+                            stddev = stddev + (input(j,i) - mean)**2
                         end if
                     end do
                 end do
