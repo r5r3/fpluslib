@@ -6,10 +6,14 @@ module fplus_array_tools_2
     !$FP interface template flip
     !$FP interface template flip_2d
     !$FP interface template qsort
+    !$FP interface template convolution2d
+    !$FP interface template noise_sigma
+    !$FP interface template signal_to_noise_ratio
 
 contains
 
     !$FP numeric = {real (kind=4)} {real (kind=8)} {integer (kind=4)} {integer (kind=8)}
+    !$FP numeric_kind = {4} {8} {4} {8}
     
     !$FP template flip
         !$FP do i = 1, 4
@@ -102,5 +106,170 @@ contains
         !$FP end do
     !$FP end template
 
+    !$FP template convolution2d
+        !$FP do i = 1, 4
+            !> @public
+            !> @brief           linear 2d convolution 
+            !> @param[in]       input   input array
+            !> @param[in]       kernel  the kernel to be applied
+            !> @param[out]      result  the result array, same size as input
+            subroutine convolution2d(input, kernel, result, fill_value)
+                ${numeric(i)}, dimension(:,:), intent(in) :: input, kernel
+                ${numeric(i)}, dimension(:,:), intent(out) :: result                
+                ${numeric(i)}, intent(in) :: fill_value                
+
+                ! local variables
+                integer :: kCols, kRows, kCenterX, kCenterY, i, j, ii, jj, m, n, mm, nn, rows, cols
+                
+                ! sizes
+                kCols = size(kernel, 1)
+                kRows = size(kernel, 2)
+                cols = size(input, 1)
+                rows = size(input, 2)
+
+                ! find center position of kernel (half of kernel size)
+                kCenterX = kCols / 2 + 1
+                kCenterY = kRows / 2 + 1
+
+                result = 0
+                do i=1, rows                        ! rows
+                    col_loop: do j=1, cols                    ! columns
+                        do m=1, kRows               ! kernel rows
+                            mm = kRows - m + 1      ! row index of flipped kernel
+                            do n = 1, kCols         ! kernel columns
+                                nn = kCols - n + 1  ! column index of flipped kernel
+
+                                ! index of input signal, used for checking boundary
+                                ii = i + (m - kCenterY)
+                                jj = j + (n - kCenterX)
+
+                                ! ignore input samples which are out of bound
+                                if (ii >= 1 .and. ii <= rows .and. jj >= 1 .and. jj <= cols) then
+                                    ! missing value?
+                                    if (input(jj,ii) .eq. fill_value) then
+                                        result(j,i) = fill_value
+                                        cycle col_loop
+                                    end if
+                                    result(j,i) = result(j,i) + input(jj,ii) * kernel(nn, mm)
+                                end if
+                            end do
+                        end do
+                    end do col_loop
+                end do
+            end subroutine
+        !$FP end do
+    !$FP end template
+
+    !$FP template noise_sigma
+        !$FP do i = 1, 4
+            !> @public
+            !> @brief           estimate noise level in 2d array based on Fast Noise Variance Estimation (IMMERKÆR 1996)
+            !> @param[in]       input   input array
+            !> @param[out]      result  sigma, real, precision is precision of input
+            subroutine noise_sigma(input, result, fill_value)
+                ${numeric(i)}, dimension(:,:), intent(in) :: input
+                real (kind=${numeric_kind(i)}), intent(out) :: result
+                ${numeric(i)}, intent(in) :: fill_value                
+
+                ! local variables
+                integer :: i, j, rows, cols
+                ${numeric(i)}, dimension(3,3) :: kernel                 ! kernel for convolution
+                ${numeric(i)}, dimension(:,:), allocatable :: conv      ! temporal result array for convolution
+                real (kind=${numeric_kind(i)}) :: pi, nvalid
+                kernel(:,1) = (/1,-2,1/)
+                kernel(:,2) = (/-2,4,-2/)
+                kernel(:,3) = (/1,-2,1/)
+
+                ! sizes
+                cols = size(input, 1)
+                rows = size(input, 2)
+
+                ! apply convolution
+                allocate(conv(cols, rows))
+                call convolution2d(input, kernel, conv, fill_value)
+
+                result = 0
+                nvalid = (cols-2)*(rows-2)
+                do i=2, rows-1                       ! rows
+                    do j=2, cols-1                   ! columns
+                        if (conv(i,j) == fill_value) then 
+                            nvalid = nvalid -1
+                            cycle
+                        end if
+                        result = result + abs(conv(i,j))
+                    end do
+                end do
+                !$FP if (numeric_kind(i) == 8) then
+                pi = dacos(-1.0_8)
+                !$FP else
+                pi = acos(-1.0)
+                !$FP end if
+                ! do we have enough valid values?
+                if (nvalid/(cols-2)*(rows-2) < 0.1) then
+                    result = fill_value
+                else
+                    result = sqrt(pi/2.0) / (6*nvalid)*result
+                end if
+            end subroutine
+        !$FP end do
+    !$FP end template
+
+    !$FP template signal_to_noise_ratio
+        !$FP do i = 1, 4
+            !> @public
+            !> @brief           estimate signal to noise ratio in 2d array based on Fast Noise Variance Estimation (IMMERKÆR 1996)
+            !> @param[in]       input   input array
+            !> @param[out]      result  SNR, real, precision is precision of input
+            subroutine signal_to_noise_ratio(input, result, fill_value)
+                ${numeric(i)}, dimension(:,:), intent(in) :: input
+                real (kind=${numeric_kind(i)}), intent(out) :: result
+                ${numeric(i)}, intent(in) :: fill_value                
+
+                ! local variables
+                integer :: i, j, cols, rows
+                real (kind=${numeric_kind(i)}) :: mean, stddev, nvalid, stddev_noise
+
+                ! sizes
+                cols = size(input, 1)
+                rows = size(input, 2)
+
+                ! first step calculate mean
+                mean = 0
+                nvalid = 0
+                do i=1, rows
+                    do j=1, cols
+                        if (input(i,j) /= fill_value) then
+                            nvalid = nvalid + 1
+                            mean = mean + input(i,j)
+                        end if
+                    end do
+                end do
+                if (nvalid .eq. 0) then
+                    result = fill_value
+                    return
+                else
+                    mean = mean / nvalid
+                end if
+                ! second step standard deviation
+                stddev = 0
+                do i=1, rows
+                    do j=1, cols
+                        if (input(i,j) /= fill_value) then
+                            stddev = stddev + (input(i,j) - mean)**2
+                        end if
+                    end do
+                end do
+                stddev = sqrt(stddev/nvalid)
+                ! third step, estimate standard deviation of noise
+                call noise_sigma(input, stddev_noise, fill_value)
+                if (stddev_noise .eq. fill_value) then
+                    result = fill_value
+                    return
+                end if
+                ! calculate SNR
+                result = stddev_noise**2 / stddev**2
+            end subroutine
+        !$FP end do
+    !$FP end template
 
 end module
