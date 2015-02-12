@@ -12,7 +12,7 @@ endif
 # select a compiler
 FC=@FC@
 CC=@CC@
-FCFLAGS=@FCFLAGS@ @FC_MODINC@include @FC_MODOUT@include
+FCFLAGS=@FCFLAGS@ @FC_MODINC@include @FC_MODOUT@include -cpp
 CCFLAGS=@CFLAGS@ 
 
 # create a list of all objects
