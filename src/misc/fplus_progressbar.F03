@@ -1,6 +1,9 @@
 module fplus_progressbar
     use, intrinsic :: ISO_C_BINDING
     use, intrinsic :: iso_fortran_env, only : output_unit
+#ifdef __INTEL_COMPILER
+    use ifport
+#endif
     implicit none
     private
 

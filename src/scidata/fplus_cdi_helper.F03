@@ -26,6 +26,8 @@ module fplus_cdi_helper
         integer, private :: lead_year
         !> @brief   try to remove rotation from unrotated variables
         logical :: try_to_remove_rotation = .false.
+        !> @brief   the asynchronous writer, index of c++ object
+        integer (kind=C_int), private :: async_writer = -1
     contains
         !> @brief   Get a pointer to the variable information for a given code and z-axsis.
         procedure, public :: get_variable => datapool_get_variable
@@ -61,6 +63,8 @@ module fplus_cdi_helper
         integer, private :: filetype
         !> @biref   the variable definition has be be finished before the first write operation
         logical :: fixed = .false.
+        !> @brief   the asynchronous writer, index of c++ object
+        integer (kind=C_int), private :: async_writer = -1
     contains
         !> @brief   Fix the variable definition
         procedure, public :: fix_variable_definition => fileinfo_fix_variable_definition
@@ -182,6 +186,31 @@ module fplus_cdi_helper
             integer(c_int), value :: streamID
             integer(c_int), value :: compLevel
         end subroutine
+
+        ! interfaces to asynchronous writer
+        !> @private
+        function init_writer() bind(C,name="init_writer")
+            import :: C_int
+            integer (kind=C_int) :: init_writer
+        end function
+
+        subroutine destroy_writer(writer) bind(C,name="destroy_writer")
+            import :: C_int
+            integer (kind=C_int), intent(in), value :: writer
+        end subroutine
+
+        subroutine streamWriteVar_async(writer, streamID, varID, values, nmiss, nvalues) bind(C,name="streamWriteVar_async")
+            import :: C_int, c_double
+            integer (kind=C_int), intent(in), value :: writer
+            integer (kind=C_int), intent(in), value :: streamID, varID, nmiss, nvalues
+            real (kind=c_double), intent(in), dimension(*) :: values
+        end subroutine
+
+        subroutine streamDefTimestep_async(writer, taxisID, idate, itime, streamID, ind) bind(C,name="streamDefTimestep_async")
+            import :: C_int
+            integer (kind=C_int), intent(in), value :: writer
+            integer (kind=C_int), intent(in), value :: taxisID, idate, itime, streamID, ind
+        end subroutine
     end interface
 
     ! @brief    it is possible to create a new datapool with one or more files.
@@ -202,23 +231,25 @@ contains
         !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
         !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
         !>                          year 1 is the first year in the file, year 2 the second. 
-        function new_datapool_1file(infile, status, lead_year, try_to_remove_rotation) result (res)
+        function new_datapool_1file(infile, status, lead_year, try_to_remove_rotation, enable_async) result (res)
             type(datapool) :: res
             type(path) :: infile
             character (len=1), intent(in), optional :: status
             integer, intent(in), optional :: lead_year
-            logical, intent(in), optional :: try_to_remove_rotation
+            logical, intent(in), optional :: try_to_remove_rotation, enable_async
 
             ! local variables to handle optional arguments
             integer :: lead_year_intern
-            logical :: try_to_remove_rotation_intern
+            logical :: try_to_remove_rotation_intern, enable_async_intern
             lead_year_intern = -1
             if (present(lead_year)) lead_year_intern = lead_year
             try_to_remove_rotation_intern = .false.
             if (present(try_to_remove_rotation)) try_to_remove_rotation_intern = try_to_remove_rotation
+            enable_async_intern = .false.
+            if (present(enable_async)) enable_async_intern = enable_async
 
             ! call the array constructor
-            res = new_datapool_nfiles_2((/infile/), status, lead_year_intern, try_to_remove_rotation_intern)
+            res = new_datapool_nfiles_2((/infile/), status, lead_year_intern, try_to_remove_rotation_intern, enable_async_intern)
         end function
 
         !$FP intype = {type(path), dimension(:)} {type(list)}
@@ -229,18 +260,18 @@ contains
             !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
             !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
             !>                          year 1 is the first year in the file, year 2 the second. 
-            function new_datapool_nfiles(infiles, status, lead_year, try_to_remove_rotation) result (res)
-                type(datapool) :: res
+            function new_datapool_nfiles(infiles, status, lead_year, try_to_remove_rotation, enable_async) result (res)
+                type(datapool), target :: res
                 ${intype(j)} :: infiles
                 character (len=1), intent(in), optional :: status
                 integer, intent(in), optional :: lead_year
-                logical, intent(in), optional :: try_to_remove_rotation
+                logical, intent(in), optional :: try_to_remove_rotation, enable_async
 
                 ! local variables
                 integer (kind=8) :: i, lsize
                 type(fileinfo), pointer :: finfo
                 type(path) :: onefile
-
+ 
                 ! reading or writing
                 if (present(status)) then
                     res%status = status
@@ -266,6 +297,14 @@ contains
                     res%try_to_remove_rotation = .false.
                 end if
 
+                ! write data asynchronous
+                if (present(enable_async)) then
+                    if (enable_async) then
+                        if (res%status /= "w") call fplus_error_print("asynchronous writing is only available in write mode!", "new_datapool")
+                        res%async_writer = init_writer()
+                    end if
+                end if
+
                 ! so far, only one file for writing is supported
                 !$FP if (j == 1) lsize = size(infiles)
                 !$FP if (j == 2) lsize = infiles%length()                
@@ -283,7 +322,7 @@ contains
                     end if
 
                     ! put the fileinfo into the list
-                    call res%files%add(new_fileinfo(onefile, res%status, res%lead_year, res%try_to_remove_rotation))
+                    call res%files%add(new_fileinfo(onefile, res%status, res%async_writer, res%lead_year, res%try_to_remove_rotation))
                 end do
                 ! create lists to track cdi resources
                 !$FP do lst = list_zaxisID list_gridID list_varID list_taxisID list_vlistID
@@ -739,6 +778,12 @@ contains
         integer :: status
         character (len=100) :: errmsg
 
+        ! in case of asynchronous writing, write all data now!
+        if (this%async_writer > -1) then
+            call destroy_writer(this%async_writer)
+            this%async_writer = -1
+        end if
+
         ! loop over all files in this pool
         iter = this%files%get_iterator()
         do while (iter%hasnext())
@@ -795,6 +840,7 @@ contains
         end select
     end function
 
+
     ! precedures for the fileinfo object ==========================================================
 
     !> @brief       Create an initiated fileinfo object that already contains the metadata from the file
@@ -804,10 +850,11 @@ contains
     !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
     !>                          year 1 is the first year in the file, year 2 the second. 
     !> @returns     A pointer to the new fileinfo object
-    function new_fileinfo(filename, status, lead_year, try_to_remove_rotation) result (res)
+    function new_fileinfo(filename, status, async_writer, lead_year, try_to_remove_rotation) result (res)
         type(path) :: filename
         class(fileinfo), pointer :: res
         character (len=1), intent(in), optional :: status
+        integer (kind=C_int), intent(in) :: async_writer
         integer, intent(in), optional :: lead_year
         logical, intent(in), optional :: try_to_remove_rotation
 
@@ -825,6 +872,9 @@ contains
         ! allocate memory for the new object
         nullify(res)
         allocate(fileinfo :: res)
+
+        ! store the index of the asynchronous writer
+        res%async_writer = async_writer
 
         ! reading or writing
         if (present(status)) then
@@ -2054,15 +2104,24 @@ contains
                 ! define the timestep
                 dtnew = new_datetime(stime=this%coord_time(ind+1))
                 call dtnew%get(idate=idate, itime=itime)
-                call taxisDefVdate(this%finfo%taxisID, idate)
-                call taxisDefVtime(this%finfo%taxisID, itime)
-                status = streamDefTimestep(this%finfo%streamID, ind)
+                ! write directly or later?
+                if (this%finfo%async_writer > -1) then
+                    call streamDefTimestep_async(this%finfo%async_writer, this%finfo%taxisID, idate, itime, this%finfo%streamID, ind)
+                else
+                    call taxisDefVdate(this%finfo%taxisID, idate)
+                    call taxisDefVtime(this%finfo%taxisID, itime)
+                    status = streamDefTimestep(this%finfo%streamID, ind)
+                end if
                 this%finfo%last_time_step = ind
             end if
         end if
 
         ! write the data
-        call streamWriteVar(this%finfo%streamID, this%varID, values, nmiss)
+        if (this%finfo%async_writer > -1) then
+            call streamWriteVar_async(this%finfo%async_writer, this%finfo%streamID, this%varID, values, nmiss, product(values_shape))
+        else
+            call streamWriteVar(this%finfo%streamID, this%varID, values, nmiss)
+        end if
     end subroutine
 
     !> @brief   Get a string representation of the variable info

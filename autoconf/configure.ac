@@ -25,6 +25,15 @@ echo "---------------------------------------------------------------"
 echo "Testing for a C compiler"
 echo "---------------------------------------------------------------"
 AC_PROG_CC
+AC_PROG_CXX([icpc g++ clang++])
+stdcxx_name=$($CXX -print-file-name=libstdc++.so)
+stdcxx_path=$(dirname $stdcxx_name)
+AS_VAR_IF([OS], [Linux], 
+    [
+        AS_VAR_APPEND([LDFLAGS], [" -Wl,-rpath=$stdcxx_path"])
+    ], 
+    [])             
+AS_VAR_APPEND([LDFLAGS], [" -cxxlib"])
 
 echo "---------------------------------------------------------------"
 echo "Testing for a FORTRAN compiler"
@@ -79,6 +88,7 @@ AC_ARG_WITH([cdi],
                             ], 
                             [])             
                         AS_VAR_APPEND([FCFLAGS], [" -I$with_cdi/include"])              
+                        AS_VAR_APPEND([CFLAGS], [" -I$with_cdi/include"])              
                     ]
                 )
             ],
