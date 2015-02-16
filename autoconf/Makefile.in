@@ -12,6 +12,7 @@ endif
 # select a compiler
 FC=@FC@
 CC=@CC@
+CXX=@CXX@
 FCFLAGS=@FCFLAGS@ @FC_MODINC@include @FC_MODOUT@include -cpp
 CCFLAGS=@CFLAGS@ 
 
@@ -97,6 +98,9 @@ build/%.f90: src/%.F03
 
 build/%.o: src/%.c
 	$(CC) $(CCFLAGS) -c -o $@ $<
+
+build/%.o: src/%.cpp
+	$(CXX) $(CCFLAGS) -std=c++11 -c -o $@ $<
 
 build/%.o: testsrc/%.f90
 	$(FC) $(FCFLAGS) -c -o $@ $<
