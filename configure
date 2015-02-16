@@ -2967,7 +2967,16 @@ if test "x$OS" = xLinux; then :
         as_fn_append LDFLAGS " -Wl,-rpath=$stdcxx_path"
 
 fi
-as_fn_append LDFLAGS " -cxxlib"
+if test "x$CXX" = xicpc; then :
+
+        as_fn_append LDFLAGS " -cxxlib"
+
+else
+
+        as_fn_append LDFLAGS " -lstdc++"
+
+fi
+
 
 echo "---------------------------------------------------------------"
 echo "Testing for a FORTRAN compiler"

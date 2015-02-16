@@ -33,7 +33,14 @@ AS_VAR_IF([OS], [Linux],
         AS_VAR_APPEND([LDFLAGS], [" -Wl,-rpath=$stdcxx_path"])
     ], 
     [])             
-AS_VAR_APPEND([LDFLAGS], [" -cxxlib"])
+AS_VAR_IF([CXX], [icpc], 
+    [
+        AS_VAR_APPEND([LDFLAGS], [" -cxxlib"])
+    ], 
+    [
+        AS_VAR_APPEND([LDFLAGS], [" -lstdc++"])
+    ])
+
 
 echo "---------------------------------------------------------------"
 echo "Testing for a FORTRAN compiler"

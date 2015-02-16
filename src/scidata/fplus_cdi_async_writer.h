@@ -8,7 +8,6 @@
 #include <map>
 #include <string.h>
 #include <unistd.h>
-#include <cdi.h>
 
 using namespace std;
 
@@ -48,6 +47,7 @@ private:
 extern "C" {
 #endif
 
+    #include <cdi.h>
     int init_writer();
     void destroy_writer(int index);
     void streamWriteVar_async(int writer, int streamID, int varID, double* values, int nmiss, int nvalues);
