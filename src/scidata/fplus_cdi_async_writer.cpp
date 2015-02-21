@@ -1,9 +1,15 @@
 #include "fplus_cdi_async_writer.h"
 
+// all writer objects are stored in a map. The fortran routines get only the index returned 
+map<int,cdi_async_writer*> writers;
+// in case of multiple writers, only one is allowed to execute CDI commands. Is CDI thread save? 
+mutex cdimtx;
+
 // constructor for the writer
 cdi_async_writer::cdi_async_writer() {
     this->mtx = new mutex();
     this->size = 0;
+    this->write_all_and_exit = false;
     this->write_thread = new thread(&cdi_async_writer::write_loop, this);
 }
 
@@ -18,16 +24,16 @@ cdi_async_writer::~cdi_async_writer() {
 }
 
 // place a new operation in the queue
-void cdi_async_writer::add_operation(async_operation &op) {
+void cdi_async_writer::add_operation(async_operation *op) {
     // lock for other operations
     this->mtx->lock();
 
     // check the operation type
-    switch (op.oper_type) {
+    switch (op->oper_type) {
 
         // write data for one time step
         case OTYPE_streamWriteVar:
-            this->size += op.nvalues*sizeof(double);
+            this->size += op->nvalues*sizeof(double);
             break;
 
         // define a new time step
@@ -36,7 +42,7 @@ void cdi_async_writer::add_operation(async_operation &op) {
 
         // unsupported operation!
         default:
-            cerr << "ERROR: unsupported operation in asynchronous writer: " << op.oper_type << endl;
+            cerr << "ERROR: unsupported operation in asynchronous writer: " << op->oper_type << endl;
             exit(-1);
     }
 
@@ -64,37 +70,41 @@ void cdi_async_writer::write_loop() {
                 continue;                
             }
         }
-        async_operation op = this->queue.front();
+        async_operation* op = this->queue.front();
         this->queue.pop_front();
         this->mtx->unlock();
 
         // perform the operation
-        switch (op.oper_type) {
+        cdimtx.lock();
+        switch (op->oper_type) {
 
             // write data for one time step
             case OTYPE_streamWriteVar:
-                streamWriteVar(op.streamID, op.varID, op.values, op.nmiss);
-                //cleanup 
-                delete op.values;
+                streamWriteVar(op->streamID, op->varID, op->values, op->nmiss);
                 //reduce size
-                this->mtx->lock();
-                this->size -= op.nvalues*sizeof(double);
-                this->mtx->unlock();
+                this->size -= op->nvalues*sizeof(double);
+                //cout << this->size << endl;
                 break;
 
             // define a new time step
             case OTYPE_streamDefTimestep:
-                taxisDefVdate(op.taxisID, op.idate);
-                taxisDefVtime(op.taxisID, op.itime);
-                status = streamDefTimestep(op.streamID, op.ind);
+                taxisDefVdate(op->taxisID, op->idate);
+                taxisDefVtime(op->taxisID, op->itime);
+                status = streamDefTimestep(op->streamID, op->ind);
                 break;
         }
+        // throw away the old operation
+        delete op;
+        cdimtx.unlock();
     }
 }
 
-// all writer objects are stored in a map. The fortran routines get only the index returned 
-map<int,cdi_async_writer*> writers;
-
+// cleanup all data of a operation
+async_operation::~async_operation() {
+    if (this->values != nullptr) {
+        delete[] values;
+    }
+}
 
 // create the writer object
 int init_writer() {
@@ -113,27 +123,27 @@ void destroy_writer(int index) {
 
 void streamWriteVar_async(int writer, int streamID, int varID, double* values, int nmiss, int nvalues) {
     // copy all information about this operation
-    async_operation op;
-    op.oper_type = OTYPE_streamWriteVar;
-    op.streamID = streamID;
-    op.varID = varID;
-    op.values = new double[nvalues];
-    memcpy(op.values, values, nvalues*sizeof(double));
-    op.nvalues = nvalues;
-    op.nmiss = nmiss;
+    async_operation* op = new async_operation();
+    op->oper_type = OTYPE_streamWriteVar;
+    op->streamID = streamID;
+    op->varID = varID;
+    op->values = new double[nvalues];
+    memcpy(op->values, values, nvalues*sizeof(double));
+    op->nvalues = nvalues;
+    op->nmiss = nmiss;
     // put this operation into the queue
     writers[writer]->add_operation(op);
 }
 
 void streamDefTimestep_async(int writer, int taxisID, int idate, int itime, int streamID, int ind) {
     // copy all information about this operation
-    async_operation op;
-    op.oper_type = OTYPE_streamDefTimestep;
-    op.taxisID = taxisID;
-    op.idate = idate;
-    op.itime = itime;
-    op.streamID = streamID;
-    op.ind = ind;
+    async_operation* op = new async_operation();
+    op->oper_type = OTYPE_streamDefTimestep;
+    op->taxisID = taxisID;
+    op->idate = idate;
+    op->itime = itime;
+    op->streamID = streamID;
+    op->ind = ind;
     // put this operation into the queue
     writers[writer]->add_operation(op);
 }

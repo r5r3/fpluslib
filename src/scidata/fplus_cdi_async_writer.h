@@ -6,6 +6,7 @@
 #include <mutex>
 #include <deque>
 #include <map>
+#include <atomic>
 #include <string.h>
 #include <unistd.h>
 
@@ -15,11 +16,15 @@ using namespace std;
 #define OTYPE_streamWriteVar    1
 #define OTYPE_streamDefTimestep 2
 
+// maximal size of the buffer (currently 100 MB), !! currently unused !!
+#define CDI_ASYNC_MAX_BUFFER    104857600
+
 struct async_operation {
+    ~async_operation();
     int oper_type;
     int streamID;
     int varID;
-    double* values;
+    double* values = nullptr;
     int nmiss;
     int nvalues;
     int taxisID;
@@ -32,14 +37,14 @@ class cdi_async_writer {
 public:
     cdi_async_writer();
     ~cdi_async_writer();
-    void add_operation(async_operation &op);
+    void add_operation(async_operation* op);
 private:
     void write_loop();
+    atomic<size_t> size;
+    atomic<bool> write_all_and_exit;
     mutex* mtx;
-    deque<async_operation> queue;
-    size_t size;
+    deque<async_operation*> queue;
     thread* write_thread;
-    bool write_all_and_exit = false;
 };
 
 // interface to c api
