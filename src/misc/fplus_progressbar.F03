@@ -73,6 +73,7 @@ contains
                 logical :: overwrite_intern
                 type(datetime) :: now
                 real (kind=8) :: remaining_time
+                character (len=18) :: time_prefix
 
                 ! update
                 print_pos = (this%width*npos)/this%nmax
@@ -81,8 +82,12 @@ contains
                 remaining_time = -1
                 if (this%timing .and. npos > 0) then
                     now = new_datetime()
-                    remaining_time = real(npos,8) / this%nmax
-                    remaining_time = anint((now%time_in_sec1970 - this%start_time%time_in_sec1970) / remaining_time * (1-remaining_time))
+                    if (npos == this%nmax) then
+                        remaining_time = anint(now%time_in_sec1970 - this%start_time%time_in_sec1970)
+                    else
+                        remaining_time = real(npos,8) / this%nmax
+                        remaining_time = anint((now%time_in_sec1970 - this%start_time%time_in_sec1970) / remaining_time * (1-remaining_time))
+                    end if
                 end if
                 if (this%last_print_pos /= print_pos_perc .or. this%last_remaining_time /= remaining_time) then
                     this%last_print_pos = print_pos_perc
@@ -107,10 +112,15 @@ contains
                     remaining_time = remaining_time - hours * 3600
                     minutes = int(remaining_time,8) / 60
                     seconds = int(remaining_time,8) - minutes * 60
-                    if (days > 0) then
-                        write(*, "(A,I3,A,I0.2,A,I0.2,A,I0.2)", advance="no"), ", estimated time: ", days, " days, ", hours, ":", minutes, ":", seconds
+                    if (npos == this%nmax) then
+                        time_prefix = ", elapsed time:   "
                     else
-                        write(*, "(A,I0.2,A,I0.2,A,I0.2,A)", advance="no"), ", estimated time: ", hours, ":", minutes, ":", seconds, "          "
+                        time_prefix = ", estimated time: "
+                    end if
+                    if (days > 0) then
+                        write(*, "(A,I3,A,I0.2,A,I0.2,A,I0.2)", advance="no"), time_prefix, days, " days, ", hours, ":", minutes, ":", seconds
+                    else
+                        write(*, "(A,I0.2,A,I0.2,A,I0.2,A)", advance="no"), time_prefix, hours, ":", minutes, ":", seconds, "          "
                     end if                    
                 end if
 
