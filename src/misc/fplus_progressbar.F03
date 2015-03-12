@@ -19,6 +19,7 @@ module fplus_progressbar
         logical :: timing
         type(datetime) :: start_time
         real (kind=8) :: last_remaining_time = -1
+        real (kind=8) :: last_update_time = -1
     contains
         !$FP generic, public :: update => progressbar_update
     end type
@@ -72,7 +73,7 @@ contains
                 integer (kind=8) :: print_pos, print_pos_perc, i, days, hours, minutes, seconds
                 logical :: overwrite_intern
                 type(datetime) :: now
-                real (kind=8) :: remaining_time
+                real (kind=8) :: remaining_time, update_time
                 character (len=18) :: time_prefix
 
                 ! update
@@ -80,18 +81,22 @@ contains
                 print_pos_perc = (100*npos)/this%nmax
                 ! update timing?
                 remaining_time = -1
+                update_time = -1
                 if (this%timing .and. npos > 0) then
                     now = new_datetime()
+                    update_time = now%time_in_sec1970
                     if (npos == this%nmax) then
                         remaining_time = anint(now%time_in_sec1970 - this%start_time%time_in_sec1970)
+                        update_time = -1
                     else
                         remaining_time = real(npos,8) / this%nmax
                         remaining_time = anint((now%time_in_sec1970 - this%start_time%time_in_sec1970) / remaining_time * (1-remaining_time))
                     end if
                 end if
-                if (this%last_print_pos /= print_pos_perc .or. this%last_remaining_time /= remaining_time) then
+                if (this%last_print_pos /= print_pos_perc .or. (this%last_remaining_time /= remaining_time .and. this%last_update_time /= update_time)) then
                     this%last_print_pos = print_pos_perc
                     this%last_remaining_time = remaining_time
+                    this%last_update_time = update_time
                 else
                     return
                 end if
