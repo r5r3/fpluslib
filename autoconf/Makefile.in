@@ -25,7 +25,7 @@ ifeq ($(FC),ifort)
 	CCDEBUG=-g -O0
 endif
 ifeq ($(FC),gfortran)
-	FCDEBUG=-g -fbacktrace -fbounds-check -O0
+	FCDEBUG=-g -fbacktrace -fbounds-check -ffpe-trap=invalid,zero,overflow,underflow -O0
 	CCDEBUG=-g -O0
 endif
 
@@ -38,6 +38,7 @@ debug: CCFLAGS += $(CCDEBUG)
 debug: bin include lib build lib/libfplus.a
 profile: FCFLAGS += -pg
 profile: CCFLAGS += -pg
+profile: LDFLAGS += -pg
 profile: debug
 
 # create folders
