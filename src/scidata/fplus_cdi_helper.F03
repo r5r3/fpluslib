@@ -147,6 +147,8 @@ module fplus_cdi_helper
         !$FP generic, public :: set_timestep_data => varinfo_set_timestep_data
         !> @brief   Save the data for a constant 2d or 3d field to the output file
         !$FP generic, public :: set_constant_data => varinfo_set_constant_data
+        !> @brief   Load the data for a constant 2d or 3d field from file
+        !$FP generic, public :: get_constant_data => varinfo_get_constant_data
         procedure, private :: varinfo_set_timestep_data_intern
         ! precedures for the object type
         procedure, public :: to_string => varinfo_to_string
@@ -863,7 +865,7 @@ contains
         class(varinfo), pointer :: info
         type(datetime) :: dt, dt_first, dt_lead_start, dt_lead_end
         real (kind=8), dimension(:), allocatable :: timeaxis, timeaxis2
-        integer :: tsID, stat, vdate, vtime, varID, zaxisID, gridID, taxisID, nlon, nlat, nzval, lead_year_intern
+        integer :: tsID, stat, vdate, vtime, varID, zaxisID, gridID, timeID, taxisID, nlon, nlat, nzval, lead_year_intern
         integer :: i,j
         character (len=:), allocatable :: extension
         character (len=200) :: cdi_error_text
@@ -981,18 +983,19 @@ contains
                     call vlistInqVarStdname(res%vlistID, varID, info%standard_name)
                     call ctrim(info%standard_name)
                     info%fill_value = vlistInqVarMissval(res%vlistID, varID)
-
                     ! add the id of the variable
                     info%varID = varID
 
-                    ! add the type of the zaxis and the timeaxis
-                    zaxisID = vlistInqVarZaxis(res%vlistID, varID)
+                    ! add the type of the zaxis, grid and the timeaxis
+                    call vlistInqVar(res%vlistID,varID,gridID,zaxisID,timeID)
                     info%zaxistype = zaxisInqType(zaxisID)
-                    info%coord_time = timeaxis
-                    info%ntime = size(timeaxis)
-
-                    ! read the grid
-                    gridID = vlistInqVarGrid(res%vlistID, info%varID)
+                    if (timeID == 0) then
+                        info%is_constant = .true.
+                        info%ntime = 0
+                    else
+                        info%coord_time = timeaxis
+                        info%ntime = size(timeaxis)
+                    end if
 
                     ! we only support lonlat and gaussian grids
                     info%gridtype = gridInqType(gridID)
@@ -1683,8 +1686,12 @@ contains
             end if
 
             ! get the time step
-            if (present(tstep)) ind = tstep
-            if (present(dt)) ind = valueindex(this%coord_time, dt%time_in_sec1970, 1, this%ntime, sorted=.true.)
+            if (this%is_constant) then
+                ind = 0
+            else        
+                if (present(tstep)) ind = tstep
+                if (present(dt)) ind = valueindex(this%coord_time, dt%time_in_sec1970, 1, this%ntime, sorted=.true.)
+            end if
             if (ind == fplus_fill_int) then 
                 if (allow_missing_ts_intern .eqv. .false.) then 
                     call fplus_error_print("time step not found!", "varinfo%get_timestep_data")
@@ -1773,8 +1780,10 @@ contains
             end if
 
             ! move the stream to the timestep of interest
-            status = streamInqTimestep(streamID, ind-1+first_valid_timestep)
-            if (status < 1) call fplus_error_print("no data for this time step", "varinfo%get_timestep_data")
+            if (.not. this%is_constant) then
+                status = streamInqTimestep(streamID, ind-1+first_valid_timestep)
+                if (status < 1) call fplus_error_print("no data for this time step", "varinfo%get_timestep_data")
+            end if
 
             ! read the data
             if (.not.present(levels)) then
@@ -1956,6 +1965,25 @@ contains
 
             ! call the set_timestep_data subroutine to write the data
             call this%set_timestep_data(values, tstep=0)
+        end subroutine
+        !$FP end do
+    !$FP end template
+
+    !$FP template varinfo_get_constant_data
+        !$FP D = {dimension(:)} {dimension(:,:)} {dimension(:,:,:)}
+
+        !$FP do i = 2, 3
+        !> @public
+        !> @brief       Load the data for a constant 2d or 3d field from file. 
+        !> @param[in]   this    reference to the varinfo object, automatically set by fortran
+        !> @param[in]   values  the array where the data is stored, the rank and shape has to match the information stored
+        !>                      in the varinfo object
+        subroutine varinfo_get_constant_data(this, values)
+            class(varinfo) :: this
+            real (kind=8), ${D(i)}, allocatable :: values
+
+            ! call the set_timestep_data subroutine to write the data
+            call this%get_timestep_data(values, tstep=0)
         end subroutine
         !$FP end do
     !$FP end template

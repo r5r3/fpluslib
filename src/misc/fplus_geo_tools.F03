@@ -238,34 +238,53 @@ contains
                 logical, intent(in), optional :: is_geo_distance
                 ${T} :: res
                 ! local variables
-                integer :: i, npoints
+                integer :: i, npoints, next_point
                 logical :: is_geo_distance_intern
-                ${T} :: x, y, l, u, refx, refy, dist
+                ${T}, dimension(2) :: u, n, p, t, r0, ref
+                ${T} :: dist, a, ul
 
                 is_geo_distance_intern = .false.
                 if (present(is_geo_distance)) is_geo_distance_intern = is_geo_distance
 
+                ! the point to test
+                p = (/testx, testy/)
+
                 ! the calculation
                 res = -1
                 npoints = size(polyx)
-                do i = 1, npoints - 1  
-                    x = polyx(i+1) - polyx(i)
-                    y = polyy(i+1) - polyy(i)
-                    l = x**2 + y**2
-                    u = ((testx - polyx(i))*x + (testy - polyy(i))*y)/l
-                    if (u .lt. 0.0) then 
-                        u = 0.0
-                    else if (u .ge. l) then
-                        u = 1.0
+                do i = 1, npoints
+                    if (i < npoints) then 
+                        next_point = i + 1
+                    else
+                        next_point = 1
+                    end if
+                    ! direction of line between two points
+                    u = (/polyx(next_point) - polyx(i), polyy(next_point) - polyy(i)/)
+                    r0 = (/polyx(i), polyy(i)/)
+                    ! length of line
+                    ul = sqrt(dot_product(u,u))
+                    ! perpendicular direction
+                    n = (/u(2)*(-1), u(1)/)
+                    ! perpendicular point (lot)
+                    t = p - dot_product(p-r0, n) / dot_product(n,n) * n - r0
+                    a = sqrt(dot_product(t,t)) / ul
+
+                    !x = polyx(next_point) - polyx(i)
+                    !y = polyy(next_point) - polyy(i)
+                    !l = x**2 + y**2
+                    !u = ((testx - polyx(i))*x + (testy - polyy(i))*y)/l
+                    if (a .lt. 0.0) then 
+                        a = 0.0
+                    else if (a .gt. 1) then
+                        a = 1.0
                     end if 
 
                     ! refx and refy are the coordinates of the reference point of a perpendicular line from the test point to the segment of the polyline
-                    refx = polyx(i) + u*x          
-                    refy = polyy(i) + u*y
+                    ref = r0 + a*u
                     if (is_geo_distance_intern) then
-                        dist = geo_distance(testx, testy, refx, refy)
+                        dist = geo_distance(testx, testy, ref(1), ref(2))
                     else
-                        dist = sqrt((refx - testx)**2 + (refy - testy)**2)
+                        dist = sqrt((ref(1) - testx)**2 + (ref(2) - testy)**2)
                     end if
 
                     ! is this the shortest distance?

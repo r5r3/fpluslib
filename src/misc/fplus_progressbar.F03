@@ -76,6 +76,12 @@ contains
                 real (kind=8) :: remaining_time, update_time
                 character (len=18) :: time_prefix
 
+                if (present(overwrite)) then
+                    overwrite_intern = overwrite
+                else
+                    overwrite_intern = .true.
+                end if
+
                 ! update
                 print_pos = (this%width*npos)/this%nmax
                 print_pos_perc = (100*npos)/this%nmax
@@ -130,7 +136,7 @@ contains
                 end if
 
                 ! move the cursor back one line
-                if (present(overwrite) .and. npos /= this%nmax .and. isatty(output_unit)) then 
+                if (overwrite_intern .and. npos /= this%nmax .and. isatty(output_unit)) then 
                     write(*, "(A)", advance="no") char(13)
                 else
                     write(*, "(A)") " "
