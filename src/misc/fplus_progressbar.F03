@@ -108,14 +108,14 @@ contains
                 end if
 
                 ! print it
-                write(*, "(A,A)", advance="no") trim(this%prefix), " ["
+                write(*, "(A,A,$)") trim(this%prefix), " ["
                 do i = 1, print_pos
-                    write(*, "(A)", advance="no") "="
+                    write(*, "(A,$)") "="
                 end do
                 do i = print_pos+1, this%width
-                    write(*, "(A)", advance="no") " "
+                    write(*, "(A,$)") " "
                 end do
-                write(*, "(A,I4,A)", advance="no") "]", print_pos_perc, "%"
+                write(*, "(A,I4,A,$)") "]", print_pos_perc, "%"
                 if (this%timing) then
                     days = int(remaining_time,8) / 86400
                     remaining_time = remaining_time - days * 86400
@@ -129,15 +129,15 @@ contains
                         time_prefix = ", estimated time: "
                     end if
                     if (days > 0) then
-                        write(*, "(A,I3,A,I0.2,A,I0.2,A,I0.2)", advance="no"), time_prefix, days, " days, ", hours, ":", minutes, ":", seconds
+                        write(*, "(A,I3,A,I0.2,A,I0.2,A,I0.2,$)"), time_prefix, days, " days, ", hours, ":", minutes, ":", seconds
                     else
-                        write(*, "(A,I0.2,A,I0.2,A,I0.2,A)", advance="no"), time_prefix, hours, ":", minutes, ":", seconds, "          "
+                        write(*, "(A,I0.2,A,I0.2,A,I0.2,A,$)"), time_prefix, hours, ":", minutes, ":", seconds, "          "
                     end if                    
                 end if
 
                 ! move the cursor back one line
                 if (overwrite_intern .and. npos /= this%nmax .and. isatty(output_unit)) then 
-                    write(*, "(A)", advance="no") char(13)
+                    write(*, "(A,$)") char(13)
                 else
                     write(*, "(A)") " "
                 end if
