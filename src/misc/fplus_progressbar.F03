@@ -99,7 +99,7 @@ contains
                         remaining_time = anint((now%time_in_sec1970 - this%start_time%time_in_sec1970) / remaining_time * (1-remaining_time))
                     end if
                 end if
-                if (this%last_print_pos /= print_pos_perc .or. (this%last_remaining_time /= remaining_time .and. this%last_update_time /= update_time)) then
+                if (this%last_print_pos /= print_pos_perc .or. (this%last_remaining_time /= remaining_time .and. this%last_update_time /= update_time .and. isatty(output_unit))) then
                     this%last_print_pos = print_pos_perc
                     this%last_remaining_time = remaining_time
                     this%last_update_time = update_time
