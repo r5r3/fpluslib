@@ -13,11 +13,15 @@ module fplus_wind
     !$FP interface template u_v_2_dir_spd
     !$FP interface template wind_mean
 
+    real (kind=4), parameter :: PI32bit = 3.141592653589793238462643383
+    real (kind=8), parameter :: PI64bit = 3.1415926535897932384626433832795028842_8
+
 contains
     
     !$FP template dir_spd_2_u_v
         !$FP dtypes = {real (kind=4)} {real (kind=8)}
         !$FP dtypes_fill = {fplus_fill_real} {fplus_fill_realk8}
+        !$FP dtypes_pi = {PI32bit} {PI64bit}
         !$FP do i = 1, 2
             !> @brief       Convert wind speed and wind direction to u- und v- wind
             !> @param[in]   dir     direction from which the wind blows 
@@ -33,8 +37,8 @@ contains
                     u = ${dtypes_fill(i)}
                     v = ${dtypes_fill(i)}
                 else
-                    u = sin((dir - 180) / 45.0 * atan(1.0)) * speed
-                    v = cos((dir - 180) / 45.0 * atan(1.0)) * speed
+                    u = sin((dir - 180) / 180.0 * ${dtypes_pi(i)}) * speed
+                    v = cos((dir - 180) / 180.0 * ${dtypes_pi(i)}) * speed
                 end if
             end subroutine
         !$FP end do
@@ -43,6 +47,7 @@ contains
     !$FP template u_v_2_dir_spd
         !$FP dtypes = {real (kind=4)} {real (kind=8)}
         !$FP dtypes_fill = {fplus_fill_real} {fplus_fill_realk8}
+        !$FP dtypes_pi = {PI32bit} {PI64bit}
         !$FP do i = 1, 2
             !> @brief       Convert wind speed and wind direction to u- und v- wind
             !> @param[in]   u       wind speed in u-direction
@@ -58,7 +63,7 @@ contains
                     dir = ${dtypes_fill(i)}
                 else
                     speed = sqrt(u**2 + v**2)
-                    dir = atan2(u, v) * 45.0 / atan(1.0) + 180.0
+                    dir = atan2(u, v) * 180.0 / ${dtypes_pi(i)} + 180.0
                 end if
             end subroutine
         !$FP end do
