@@ -258,29 +258,36 @@ contains
                     else
                         next_point = 1
                     end if
-                    ! direction of line between two points
-                    u = (/polyx(next_point) - polyx(i), polyy(next_point) - polyy(i)/)
-                    r0 = (/polyx(i), polyy(i)/)
-                    ! length of line
-                    ul = sqrt(dot_product(u,u))
-                    ! perpendicular direction
-                    n = (/u(2)*(-1), u(1)/)
-                    ! perpendicular point (lot)
-                    t = p - dot_product(p-r0, n) / dot_product(n,n) * n - r0
-                    a = sqrt(dot_product(t,t)) / ul
+                    ! is this point different from the last point?
+                    if (polyx(next_point) /= polyx(i) .and. polyy(next_point) /= polyy(i)) then
+                        ! direction of line between two points
+                        u = (/polyx(next_point) - polyx(i), polyy(next_point) - polyy(i)/)
+                        r0 = (/polyx(i), polyy(i)/)
+                        ! length of line
+                        ul = sqrt(dot_product(u,u))
+                        ! perpendicular direction
+                        n = (/u(2)*(-1), u(1)/)
+                        ! perpendicular point (lot)
+                        t = p - dot_product(p-r0, n) / dot_product(n,n) * n - r0
+                        a = sqrt(dot_product(t,t)) / ul
 
-                    !x = polyx(next_point) - polyx(i)
-                    !y = polyy(next_point) - polyy(i)
-                    !l = x**2 + y**2
-                    !u = ((testx - polyx(i))*x + (testy - polyy(i))*y)/l
-                    if (a .lt. 0.0) then 
-                        a = 0.0
-                    else if (a .gt. 1) then
-                        a = 1.0
-                    end if 
+                        !x = polyx(next_point) - polyx(i)
+                        !y = polyy(next_point) - polyy(i)
+                        !l = x**2 + y**2
+                        !u = ((testx - polyx(i))*x + (testy - polyy(i))*y)/l
+                        if (a .lt. 0.0) then 
+                            a = 0.0
+                        else if (a .gt. 1) then
+                            a = 1.0
+                        end if 
 
-                    ! refx and refy are the coordinates of the reference point of a perpendicular line from the test point to the segment of the polyline
-                    ref = r0 + a*u
+                        ! refx and refy are the coordinates of the reference point of a perpendicular line from the test point to the segment of the polyline
+                        ref = r0 + a*u
+                    else
+                        ref(1) = polyx(i)
+                        ref(2) = polyy(i)                  
+                    end if
+
                     if (is_geo_distance_intern) then
                         dist = geo_distance(testx, testy, ref(1), ref(2))
                     else
