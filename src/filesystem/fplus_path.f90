@@ -41,7 +41,7 @@ module fplus_path
     public :: new_path, to_path
 
     ! interfaces to c functions
-    interface 
+    interface
         function opendir(dirname) result(res) bind(C,name="opendir")
             import :: C_ptr, C_char
             character (kind=C_char) :: dirname(*)
@@ -134,15 +134,16 @@ contains
         character (len=:), allocatable :: res
 
         !local variables
-        integer :: i1, i2
+        integer :: i1, i2, i3
 
         ! find the last dot
         i1 = index(this%name, ".", back=.true.)
         i2 = index(this%name, "/", back=.true.)
-        if (i1==0 .or. i1 <= i2 .or. i1 == len_trim(this%name)) then
+        i3 = len_trim(this%name)
+        if (i1==0 .or. i1 <= i2 .or. i1 == i3) then
             res = ""
         else
-            res = trim(this%name(i1+1:))
+            res = this%name(i1+1:i3)
         end if
     end function
 
@@ -183,10 +184,10 @@ contains
         end if
     end function
 
-    !> @public 
+    !> @public
     !> @brief       Returns the content of a text file as character array
-    !> @param       as_path     set to true if the content of the file is one filename per line. 
-    !>                          the returned list will then contain path objects.       
+    !> @param       as_path     set to true if the content of the file is one filename per line.
+    !>                          the returned list will then contain path objects.
     function path_get_lines(this, as_path) result (res)
         class(path) :: this
         logical, optional :: as_path
@@ -208,7 +209,7 @@ contains
 
         ! open the input file
         open(newunit=unit, file=this%name, status="OLD", action="READ", iostat=iostat, iomsg=iomsg)
-        ! any errors? 
+        ! any errors?
         if (iostat /= 0) call fplus_error_print(iomsg, "path%get_lines")
 
         ! read as long as no errors occure
@@ -259,13 +260,13 @@ contains
         res = new_list()
 
         ! is this a directory? if not, return the empty list
-        if (.not. this%is_directory()) return 
+        if (.not. this%is_directory()) return
 
-        ! open the directory 
+        ! open the directory
         dir_ptr = opendir(this%get_cstr_name())
 
         ! loop over all entries
-        do 
+        do
             ! read next entry
             ierr = readdir_wrapper(dir_ptr, filename)
             if (ierr /= 0) exit

@@ -84,7 +84,9 @@ module fplus_cdi_helper
         real (kind=8), dimension(:,:), allocatable, public :: coord_lon2d
         real (kind=8), dimension(:,:), allocatable, public :: coord_lat2d
         real (kind=8), dimension(:), allocatable, public :: coord_z
+        real (kind=8), dimension(:), allocatable, public :: hybrid_vertical_coordinate_table
         integer, public :: code = -1, zaxistype = -1, gridtype = -1
+        integer, public :: hybrid_vertical_coordinate_table_size = -1
         integer, private :: varID = -1
         integer, private :: zaxisID = -1
         integer, private :: gridID = -1
@@ -100,7 +102,7 @@ module fplus_cdi_helper
         integer, dimension(:,:), allocatable :: parent_subscripts
         ! used to indicate that a derived variable is rotated in longitude direction
         integer :: rotated_by_npoints = 0
-        ! is this variable constant in time? 
+        ! is this variable constant in time?
         logical :: is_constant = .false.
         ! is the x- or y-axsis flipped (starts with larger values?)
         logical :: coord_lon_flipped = .false.
@@ -164,11 +166,11 @@ module fplus_cdi_helper
         !> @brief   Get the size of the underlying array in x-direction
         procedure, public :: get_x_size => varinfo_get_x_size
         !> @brief   Get the size of the underlying array in x-direction
-        procedure, public :: get_y_size => varinfo_get_y_size     
+        procedure, public :: get_y_size => varinfo_get_y_size
         !> @brief   Get all dates that belong to one month
-        procedure, public :: get_dates_in_month => varinfo_get_dates_in_2  
+        procedure, public :: get_dates_in_month => varinfo_get_dates_in_2
         !> @brief   Get all dates that belong to one year
-        procedure, public :: get_dates_in_year => varinfo_get_dates_in_1   
+        procedure, public :: get_dates_in_year => varinfo_get_dates_in_1
     end type
 
     !list of public functions
@@ -188,6 +190,13 @@ module fplus_cdi_helper
             integer(c_int), value :: streamID
             integer(c_int), value :: compLevel
         end subroutine
+
+        ! interface to vct subroutine
+        subroutine zaxisInqVct(zaxisID,vct_vec) bind(c,name='zaxisInqVct')
+            import :: c_int,c_double
+            integer(c_int), value :: zaxisID
+            real(c_double), intent(out),dimension(*) :: vct_vec
+        end subroutine zaxisInqVct
 
         ! interfaces to asynchronous writer
         !> @private
@@ -231,8 +240,8 @@ contains
         !> @details     Reading is possible from mulptiply files add ones, writing so fare only in single files
         !> @param[in]   infile      one path object that contains the filename
         !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
-        !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
-        !>                          year 1 is the first year in the file, year 2 the second. 
+        !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year,
+        !>                          year 1 is the first year in the file, year 2 the second.
         function new_datapool_1file(infile, status, lead_year, try_to_remove_rotation, enable_async) result (res)
             type(datapool) :: res
             type(path) :: infile
@@ -260,8 +269,8 @@ contains
             !> @details     Reading is possible from mulptiply files add ones, writing so fare only in single files
             !> @param[in]   infiles     An Array of path objects that contain the filename(s)
             !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
-            !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
-            !>                          year 1 is the first year in the file, year 2 the second. 
+            !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year,
+            !>                          year 1 is the first year in the file, year 2 the second.
             function new_datapool_nfiles(infiles, status, lead_year, try_to_remove_rotation, enable_async) result (res)
                 type(datapool), target :: res
                 ${intype(j)} :: infiles
@@ -273,7 +282,7 @@ contains
                 integer (kind=8) :: i, lsize
                 type(fileinfo), pointer :: finfo
                 type(path) :: onefile
- 
+
                 ! reading or writing
                 if (present(status)) then
                     res%status = status
@@ -309,7 +318,7 @@ contains
 
                 ! so far, only one file for writing is supported
                 !$FP if (j == 1) lsize = size(infiles)
-                !$FP if (j == 2) lsize = infiles%length()                
+                !$FP if (j == 2) lsize = infiles%length()
                 if (lsize > 1 .and. res%status == "w") call fplus_error_print("datapools with more than one file is so far only supported for reading", "new_datapool", FPLUS_ERR)
 
                 ! create a new list for the files
@@ -387,7 +396,7 @@ contains
         ! how many of the given informations have to match?
         n_have_to_match = 1
         if (present(all_match)) then
-            if (all_match) then 
+            if (all_match) then
                 n_have_to_match = n_qualifier
             end if
         end if
@@ -407,7 +416,7 @@ contains
                 varptr => to_varinfo(ptr)
                 matching_qualifier = 0
                 ! the zaxis if present has to match
-                if (present(zaxis)) then 
+                if (present(zaxis)) then
                     if (zaxis /= varptr%zaxistype) cycle
                 end if
                 ! one of the parameters name, code, or standard_name has to match
@@ -448,11 +457,11 @@ contains
                 ! this is the second or an addition variable, add it to the merged variable
                 else
                     ! the variables are only allowed to differ in the defined time steps
-                    if (varptr%nlon /= res%nlon & 
-                        .or. varptr%nlat /= res%nlat & 
+                    if (varptr%nlon /= res%nlon &
+                        .or. varptr%nlat /= res%nlat &
                         .or. varptr%nzval /= res%nzval &
                         .or. trim(varptr%name) /= trim(res%name) &
-                        .or. trim(varptr%standard_name) /= trim(res%standard_name) & 
+                        .or. trim(varptr%standard_name) /= trim(res%standard_name) &
                         .or. varptr%zaxistype /= res%zaxistype) then
                         call fplus_error_print("merged variables are only allowed to differ in their time steps", "datapool%get_variable_with_code_zaxis", FPLUS_WARN)
                         call res%clear()
@@ -502,7 +511,7 @@ contains
                 vinr = value_in_range(lon_temp, lon_range)
                 if (any(vinr .eqv. .false.)) then
                     ! longitude between 0 and 360 as well as -180 and 180 are used. can we solve the problem by switching between these representations?
-                    ! which representation is used for the coordinate axis? 
+                    ! which representation is used for the coordinate axis?
                     if (any(lon_temp < 0) .and. .not. any(lon_temp > 180)) then
                         lon_type(1) = -1
                     else
@@ -513,7 +522,7 @@ contains
                     else
                         lon_type(2) = 1
                     end if
-                    ! are the representation different? 
+                    ! are the representation different?
                     if (lon_type(1) /= lon_type(2)) then
                         ! convert the coordinate axis of the input array to the new type
                         if (lon_type(2) == -1) then
@@ -528,7 +537,7 @@ contains
                         else
                             where (lon_temp < 0)
                                 lon_temp = lon_temp + 360
-                            end where                            
+                            end where
                             if (allocated(lon_temp2d)) then
                                 where (lon_temp2d < 0)
                                     lon_temp2d = lon_temp2d + 360
@@ -572,7 +581,7 @@ contains
                                 if (res%parent%coord_lon2d(i,j) >= lon_range(1) .and. res%parent%coord_lon2d(i,j) <= lon_range(2)) then
                                     if (res%parent_subscripts(1,1) == fplus_fill_int .or. res%parent_subscripts(1,1) /= fplus_fill_int .and. res%parent_subscripts(1,1) > i) res%parent_subscripts(1,1) = i
                                     if (res%parent_subscripts(1,2) == fplus_fill_int .or. res%parent_subscripts(1,2) /= fplus_fill_int .and. res%parent_subscripts(1,2) < i) res%parent_subscripts(1,2) = i
-                                end if                            
+                                end if
                             end if
                         end do
                     end do
@@ -598,7 +607,7 @@ contains
                         if (res%parent%coord_lat2d(i,j) >= lat_range(1) .and. res%parent%coord_lat2d(i,j) <= lat_range(2)) then
                             if (res%parent_subscripts(2,1) == fplus_fill_int .or. res%parent_subscripts(2,1) /= fplus_fill_int .and. res%parent_subscripts(2,1) > i) res%parent_subscripts(2,1) = j
                             if (res%parent_subscripts(2,2) == fplus_fill_int .or. res%parent_subscripts(2,2) /= fplus_fill_int .and. res%parent_subscripts(2,2) < i) res%parent_subscripts(2,2) = j
-                        end if                            
+                        end if
                     end do
                 end do
             else if (res%parent%gridtype /= GRID_CURVILINEAR) then
@@ -666,7 +675,7 @@ contains
             res%coord_z   = res%parent%coord_z(res%parent_subscripts(3,1):res%parent_subscripts(3,2))
             res%nzval = size(res%coord_z)
             ! if the derived variable if identical to the original variable, then return the original variable
-            ! as the coordinates are created out of the parent coordinate, same size means same values. 
+            ! as the coordinates are created out of the parent coordinate, same size means same values.
             if (res%parent%nlon == res%nlon .and. res%parent%nlat == res%nlat .and. res%parent%nzval == res%nzval) then
                 varptr => res%parent
                 deallocate(res)
@@ -680,7 +689,7 @@ contains
     end function
 
 
-    !> @public 
+    !> @public
     !> @brief       Get a list with all variables in a datapool. the same variable form different files if returned only once as merged variable
     !> @param[in]   this        reference to the datapool object, automatically set by fortran
     function datapool_get_all_variables(this) result (res)
@@ -731,9 +740,9 @@ contains
             end select
         end do
 
-        ! clean up 
+        ! clean up
         call allvars%clear()
-    end function 
+    end function
 
     !> @public
     !> @brief       Create a new variable information object for writing
@@ -752,10 +761,13 @@ contains
         ! local variables
         class(fileinfo), pointer :: fileptr
         class(*), pointer :: ptr
+        logical :: copy_time_intern
 
         ! copy properties from the template
+        copy_time_intern = .true.
+        if (present(copy_time)) copy_time_intern = copy_time
         if (present(template)) then
-            res => template%derived_clone(copy_time=copy_time)
+            res => template%derived_clone(copy_time=copy_time_intern)
         else
             allocate(res)
         end if
@@ -813,7 +825,7 @@ contains
 
     !> @brief   Fix the variable definition of all included files
     subroutine datapool_fix_variable_definition(this)
-        class(datapool) :: this 
+        class(datapool) :: this
 
         ! local variables
         integer (kind=8) :: i
@@ -849,8 +861,8 @@ contains
     !>              if the file is open for reading
     !> @param[in]   filename    the abstract path name of the file to open
     !> @param[in]   status      open the files for reading ("r") or writing ("w"), optional, default = "r"
-    !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year, 
-    !>                          year 1 is the first year in the file, year 2 the second. 
+    !> @param[in]   lead_year   don't use full files, limit the content of the file to the given lead year,
+    !>                          year 1 is the first year in the file, year 2 the second.
     !> @returns     A pointer to the new fileinfo object
     function new_fileinfo(filename, status, async_writer, lead_year, try_to_remove_rotation) result (res)
         type(path) :: filename
@@ -870,7 +882,7 @@ contains
         character (len=:), allocatable :: extension
         character (len=200) :: cdi_error_text
         info => null()
-        
+
         ! allocate memory for the new object
         nullify(res)
         allocate(fileinfo :: res)
@@ -892,7 +904,7 @@ contains
         if (present(lead_year)) then
             if (lead_year > -1 .and. res%status == "w") call fplus_error_print("lead_year argument only allowed for reading!", "new_fileinfo")
             lead_year_intern = lead_year
-        else 
+        else
             lead_year_intern = -1
         end if
 
@@ -936,7 +948,7 @@ contains
                     ! convert to datetime object and store in a list
                     dt = new_datetime(idate=vdate, itime=vtime)
                     ! find start and end of selected lead year
-                    if (tsID == 0 .and. lead_year_intern > -1) then 
+                    if (tsID == 0 .and. lead_year_intern > -1) then
                         dt_lead_start = dt
                         call dt_lead_start%add(year=lead_year_intern-1)
                         dt_lead_end = dt_lead_start
@@ -947,7 +959,7 @@ contains
                         if (dt%time_in_sec1970 >= dt_lead_start%time_in_sec1970 .and. dt%time_in_sec1970 <= dt_lead_end%time_in_sec1970) then
                             call ls%add(dt, copy=.true.)
                             if (ls%length() == 1) res%first_valid_timestep = tsID
-                        else if (dt%time_in_sec1970 > dt_lead_end%time_in_sec1970) then 
+                        else if (dt%time_in_sec1970 > dt_lead_end%time_in_sec1970) then
                             exit
                         end if
                     else
@@ -957,7 +969,7 @@ contains
                     tsID = tsID + 1
                 end do
 
-                ! time steps found? 
+                ! time steps found?
                 if (ls%length() > 0 .or. lead_year_intern == -1) then
                     timeaxis = ls
                 else
@@ -1014,7 +1026,7 @@ contains
                         stat = gridInqYvals(gridID, info%coord_lat)
                     else
                         allocate(info%coord_lon2d(info%nlon, info%nlat))
-                        allocate(info%coord_lat2d(info%nlon, info%nlat))                    
+                        allocate(info%coord_lat2d(info%nlon, info%nlat))
                         ! store the lat and lon coordinates
                         stat = gridInqXvals(gridID, info%coord_lon2d)
                         stat = gridInqYvals(gridID, info%coord_lat2d)
@@ -1049,7 +1061,7 @@ contains
                         if (info%gridtype == GRID_LONLAT) then
                             info%gridtype = GRID_CURVILINEAR
                             allocate(info%coord_lon2d(info%nlon, info%nlat))
-                            allocate(info%coord_lat2d(info%nlon, info%nlat))                            
+                            allocate(info%coord_lat2d(info%nlon, info%nlat))
                             do i = 1, info%nlon
                                 do j = 1, info%nlat
                                     info%coord_lon2d(i,j) = lonrot_to_lon(info%coord_lat(j), info%coord_lon(i), info%grid_y_pole, info%grid_x_pole, info%grid_angle)
@@ -1059,13 +1071,13 @@ contains
                             deallocate(info%coord_lon)
                             deallocate(info%coord_lat)
                             info%grid_is_rotated = .false.
-                        end if              
+                        end if
                     end if
 
                     ! try to remove the rotation of an unrotated grid
                     if (present(try_to_remove_rotation) .and. info%gridtype == GRID_CURVILINEAR) then
                     if (try_to_remove_rotation .and. .not. is_2d_grid_rotated(info%coord_lon2d, info%coord_lat2d)) then
-                        ! OK, the grid is not rotated. do we have a 1d coordinate? 
+                        ! OK, the grid is not rotated. do we have a 1d coordinate?
                         if (.not. allocated(info%coord_lon) .and. .not. allocated(info%coord_lat)) then
                             ! copy one row and one column from the 2d coordinates
                             info%coord_lon = info%coord_lon2d(:,1)
@@ -1086,6 +1098,11 @@ contains
                     allocate(info%coord_z(info%nzval))
                     call zaxisInqLevels(zaxisID, info%coord_z)
                     call zaxisInqUnits(zaxisID, info%zaxis_units)
+                    if (info%zaxistype == ZAXIS_HYBRID) then
+                        info%hybrid_vertical_coordinate_table_size = zaxisInqVctSize(zaxisID)
+                        allocate(info%hybrid_vertical_coordinate_table(info%hybrid_vertical_coordinate_table_size))
+                        call zaxisInqVct(zaxisID,info%hybrid_vertical_coordinate_table)
+                    end if
                     call ctrim(info%zaxis_units)
 
                     ! store a pointer to the fileinfo object
@@ -1211,7 +1228,7 @@ contains
                         if (ptr2%grid_is_rotated .and. ptr%grid_is_rotated) then
                             if (ptr2%grid_x_pole /= ptr%grid_x_pole) cycle
                             if (ptr2%grid_y_pole /= ptr%grid_y_pole) cycle
-                            if (ptr2%grid_angle /= ptr%grid_angle) cycle                                
+                            if (ptr2%grid_angle /= ptr%grid_angle) cycle
                         end if
                         ! the grid are identical!
                         ptr%gridID = ptr2%gridID
@@ -1238,7 +1255,7 @@ contains
                     else if (ptr%gridtype == GRID_GENERIC) then
                         gridsize = 1
                         if (ptr%nlon > 0) gridsize = gridsize * ptr%nlon
-                        if (ptr%nlat > 0) gridsize = gridsize * ptr%nlat                        
+                        if (ptr%nlat > 0) gridsize = gridsize * ptr%nlat
                         ptr%gridID = gridCreate(GRID_GENERIC, gridsize)
                         call list_gridID%add(ptr%gridID, copy=.true.)
                         if (ptr%nlon > 0) call gridDefXsize(ptr%gridID, ptr%nlon)
@@ -1282,6 +1299,9 @@ contains
                 call list_zaxisID%add(ptr%zaxisID, copy=.true.)
                 if (size(ptr%coord_z) /= ptr%nzval) call fplus_error_print("size of zaxis coordinate array and nzval don't fit together", "fileinfo%fix_variable_definition")
                 call zaxisDefLevels(ptr%zaxisID, ptr%coord_z)
+                if (ptr%zaxistype == ZAXIS_HYBRID .and. allocated(ptr%hybrid_vertical_coordinate_table)) then
+                    call zaxisDefVct(ptr%zaxisID, ptr%hybrid_vertical_coordinate_table_size, ptr%hybrid_vertical_coordinate_table)
+                end if
                 if (len_trim(ptr%zaxis_units) /= 0) call zaxisDefUnits(ptr%zaxisID, trim(ptr%zaxis_units) // C_NULL_CHAR)
                 ! are there other variables with the same zaxis?
                 do i = 1, this%variables%length()
@@ -1291,7 +1311,7 @@ contains
                     if (ptr2%zaxistype /= ptr%zaxistype) cycle
                     if (.not. allocated(ptr2%coord_z)) cycle
                     if (.not. allocated(ptr%coord_z)) cycle
-                    if (size(ptr2%coord_z) /= size(ptr%coord_z)) cycle 
+                    if (size(ptr2%coord_z) /= size(ptr%coord_z)) cycle
                     if (all(ptr2%coord_z == ptr%coord_z)) then
                         ptr2%zaxisID = ptr%zaxisID
                     end if
@@ -1362,14 +1382,14 @@ contains
 
         ! destroy objects used for writing
         if (this%status == "w") then
-            if (this%vlistID >= 0) then 
+            if (this%vlistID >= 0) then
                 index = list_vlistID%get_position(this%vlistID)
                 if (index > 0) then
                     call vlistDestroy(this%vlistID)
                     call list_vlistID%remove(index)
                 end if
             end if
-            if (this%taxisID >= 0) then 
+            if (this%taxisID >= 0) then
                 index = list_taxisID%get_position(this%taxisID)
                 if (index > 0) then
                     call taxisDestroy(this%taxisID)
@@ -1461,7 +1481,7 @@ contains
 
         ! check if the file containing this variable is already fixed
         if (associated(this%finfo) .and. this%finfo%fixed .eqv. .true.) then
-            call fplus_error_print("fill_value for variable " // trim(this%name) // " not changed. file is already fixed!", "varinfo%set_fill_value")        
+            call fplus_error_print("fill_value for variable " // trim(this%name) // " not changed. file is already fixed!", "varinfo%set_fill_value")
         end if
 
         ! store the fill_value
@@ -1480,7 +1500,7 @@ contains
     !$FP template varinfo_set_zaxis
         !$FP T = {real(kind=8)} {real(kind=8), dimension(:)}
         !$FP COORD_SIZE = 1 {size(coord_z)}
-    
+
         !$FP do i = 1, 2
         !> @public
         !> @brief       Define a new zaxis for this variable
@@ -1511,7 +1531,7 @@ contains
     !$FP template varinfo_set_xaxis
         !$FP T = {real(kind=8)} {real(kind=8), dimension(:)}
         !$FP COORD_SIZE = 1 {size(coord_x)}
-    
+
         !$FP do i = 1, 2
         !> @public
         !> @brief       Define a new xaxis for this variable
@@ -1538,7 +1558,7 @@ contains
     !$FP template varinfo_set_yaxis
         !$FP T = {real(kind=8)} {real(kind=8), dimension(:)}
         !$FP COORD_SIZE = 1 {size(coord_y)}
-    
+
         !$FP do i = 1, 2
         !> @public
         !> @brief       Define a new yaxis for this variable
@@ -1629,7 +1649,7 @@ contains
         !$FP PSUB32 = {} {, :}
         !$FP SHC = {res_shape(1) /= this%get_x_size() .or. res_shape(2) /= this%get_y_size()} {res_shape(1) /= this%get_x_size() .or. res_shape(2) /= this%get_y_size() .or. res_shape(3) /= this%nzval}
         !$FP SHC2 = {res_shape(1) /= this%get_x_size() .or. res_shape(2) /= this%get_y_size()} {res_shape(1) /= this%get_x_size() .or. res_shape(2) /= this%get_y_size() .or. res_shape(3) /= size(levels)}
-    
+
         !$FP do i = 1, 2
         !> @public
         !> @brief       Load D2-d-field data for one time step from the input file
@@ -1673,13 +1693,13 @@ contains
             if (present(levels)) nlevels = size(levels)
 
             ! is this variable 2d or 3d?
-            if (${D2(i)} == 2 .and. this%nzval > 1 .and. nlevels > 1) & 
+            if (${D2(i)} == 2 .and. this%nzval > 1 .and. nlevels > 1) &
                 call fplus_error_print(this%to_string() // " is not 2-dimensional!", "varinfo%get_timestep_data")
-            if (${D2(i)} == 3 .and. this%nzval == 1)  & 
+            if (${D2(i)} == 3 .and. this%nzval == 1)  &
                 call fplus_error_print(this%to_string() // " is not 3-dimensional!", "varinfo%get_timestep_data")
-            if (${D2(i)} == 2 .and. present(levels) .and. nlevels > 1) & 
+            if (${D2(i)} == 2 .and. present(levels) .and. nlevels > 1) &
                 call fplus_error_print(this%to_string() // " is not 3-dimensional! Don't use the levels argument!", "varinfo%get_timestep_data")
-            
+
             ! at least one valid parameter must be present
             if (.not.present(tstep) .and. .not.present(stime) .and. .not.present(dt)) then
                 call fplus_error_print("no time step or time of the time step is given!", "varinfo%get_timestep_data")
@@ -1688,19 +1708,19 @@ contains
             ! get the time step
             if (this%is_constant) then
                 ind = 0
-            else        
+            else
                 if (present(tstep)) ind = tstep
                 if (present(dt)) ind = valueindex(this%coord_time, dt%time_in_sec1970, 1, this%ntime, sorted=.true.)
             end if
-            if (ind == fplus_fill_int) then 
-                if (allow_missing_ts_intern .eqv. .false.) then 
+            if (ind == fplus_fill_int) then
+                if (allow_missing_ts_intern .eqv. .false.) then
                     call fplus_error_print("time step not found!", "varinfo%get_timestep_data")
                 else
                     res = this%fill_value
-                    return 
+                    return
                 end if
             else
-                if (associated(this%finfo)) then 
+                if (associated(this%finfo)) then
                     first_valid_timestep = this%finfo%first_valid_timestep
                 else
                     first_valid_timestep = 0
@@ -1728,7 +1748,7 @@ contains
                         deallocate(res)
                         allocate(res(${AL2(i)}))
                     end if
-                end if                
+                end if
             end if
 
             ! is it a derived variable? if so, call this function recursivly
@@ -1744,7 +1764,7 @@ contains
                 ! is there the need to rotate this array
                 if (this%rotated_by_npoints /= 0) call rotate_array(temp, this%rotated_by_npoints)
                 ! assign the subsection to the result array
-                if (.not.present(levels)) then 
+                if (.not.present(levels)) then
                     res = temp(this%parent_subscripts(1,1):this%parent_subscripts(1,2), this%parent_subscripts(2,1):this%parent_subscripts(2,2) ${PSUB3(i)})
                 else
                     res = temp(this%parent_subscripts(1,1):this%parent_subscripts(1,2), this%parent_subscripts(2,1):this%parent_subscripts(2,2) ${PSUB32(i)})
@@ -1804,7 +1824,7 @@ contains
                     do ind = 1, size(res,3)
                         call flip_2d(res(:,:,ind), 1)
                     end do
-                !$FP end if                
+                !$FP end if
             end if
             if (this%coord_lat_flipped) then
                 !$FP if (D2(i) == 2) then
@@ -1814,7 +1834,7 @@ contains
                     do ind = 1, size(res,3)
                         call flip_2d(res(:,:,ind), 2)
                     end do
-                !$FP end if                
+                !$FP end if
             end if
         end subroutine
         !$FP end do
@@ -1831,7 +1851,7 @@ contains
         !>              the the result for this point will also be missing.
         !> @res         the array to store the calculated values in
         !> @year        the year of the month to consider
-        !> @month       the month to calculate 
+        !> @month       the month to calculate
         !> @mode        sum='s' or average='a|m'
         subroutine varinfo_get_monthly_data(this, res, year, month, mode)
             class(varinfo) :: this
@@ -1842,7 +1862,7 @@ contains
             ! local variables
             real (kind=8), ${D(nd)}, allocatable :: timestep_data
             real (kind=8), ${D(nd+1)}, allocatable :: all_timestep_data
-            type(list) :: dates_in_month 
+            type(list) :: dates_in_month
             type(datetime) :: dt
             integer :: i, j, k, t
             real (kind=8) :: value, nvalues
@@ -1854,9 +1874,9 @@ contains
 
             ! get all dates that belong to the given month
             dates_in_month = this%get_dates_in_month(year, month)
-            if (dates_in_month%length() == 0) then 
+            if (dates_in_month%length() == 0) then
                 call fplus_error_print("no values found for the requested month: " // type_to_string(year) // "-" // type_to_string(month), "varinfo%get_monthly_data", FPLUS_WARN)
-                if (allocated(res)) then 
+                if (allocated(res)) then
                     res = this%fill_value
                 else
                   ! get the first dimestep of the input file to see the dimensions of the field
@@ -1865,7 +1885,7 @@ contains
                     res = this%fill_value
                 end if
                 return
-            end if    
+            end if
 
             ! loop over all timesteps in this month
             do i = 1, dates_in_month%length()
@@ -1873,7 +1893,7 @@ contains
                 dt = to_datetime(dates_in_month%get(i))
                 call this%get_timestep_data(timestep_data, dt=dt)
 
-                ! allocate the array 
+                ! allocate the array
                 if (i == 1) then
                     ! the result array
                     if (allocated(res)) then
@@ -1887,7 +1907,7 @@ contains
                     ! the array for all timesteps
                     !$FP if (nd==1) then
                         allocate(all_timestep_data(size(res,1), size(res,2), dates_in_month%length()))
-                    !$FP else 
+                    !$FP else
                         allocate(all_timestep_data(size(res,1), size(res,2), size(res,3), dates_in_month%length()))
                     !$FP end if
                 end if
@@ -1895,9 +1915,9 @@ contains
                 ! store the date for this timestep in the temporal array
                 !$FP if (nd==1) then
                     all_timestep_data(:,:,i) = timestep_data
-                !$FP else 
+                !$FP else
                     all_timestep_data(:,:,:,i) = timestep_data
-                !$FP end if                
+                !$FP end if
             end do
 
             ! calculate sum or average
@@ -1954,7 +1974,7 @@ contains
 
         !$FP do i = 1, 3
         !> @public
-        !> @brief       Save the data for a constant 2d or 3d field to the output file. 
+        !> @brief       Save the data for a constant 2d or 3d field to the output file.
         !> @details     You have to write the constant fields at last (unsure why...)
         !> @param[in]   this    reference to the varinfo object, automatically set by fortran
         !> @param[in]   values  the array where the data is stored, the rank and shape has to match the information stored
@@ -1974,7 +1994,7 @@ contains
 
         !$FP do i = 2, 3
         !> @public
-        !> @brief       Load the data for a constant 2d or 3d field from file. 
+        !> @brief       Load the data for a constant 2d or 3d field from file.
         !> @param[in]   this    reference to the varinfo object, automatically set by fortran
         !> @param[in]   values  the array where the data is stored, the rank and shape has to match the information stored
         !>                      in the varinfo object
@@ -2054,7 +2074,7 @@ contains
         if (this%get_x_size() > 1) dim_count = 1
         if (this%get_y_size() > 1) dim_count = dim_count + 1
         if (this%nzval > 1) dim_count = dim_count + 1
-        if (dim_count /= values_rank) then 
+        if (dim_count /= values_rank) then
             print*, "Nominal number of dimensions different from 1: ", dim_count
             print*, "Actual number of dimensions different from 1:  ", values_rank
             print*, "Variable Name: ", trim(this%name)
@@ -2119,7 +2139,7 @@ contains
         end if
         if (ind == -1 .and. .not. this%is_constant) call fplus_error_print("problem with time step definition", "varinfo%set_timestep_data")
         if (this%finfo%last_time_step == -1 .and. ind > 0) call fplus_error_print("the first time step has be 0!", "varinfo%set_timestep_data")
-        
+
         ! check is this time step is already defined
         if (.not. this%is_constant) then
             if (this%finfo%last_time_step >= ind) then
@@ -2185,20 +2205,21 @@ contains
     subroutine varinfo_clear(this)
         class(varinfo) :: this
         integer (kind=8) :: index
-        if (allocated(this%coord_time)) deallocate (this%coord_time)
-        if (allocated(this%coord_lon))  deallocate (this%coord_lon)
-        if (allocated(this%coord_lat))  deallocate (this%coord_lat)
-        if (allocated(this%coord_z))    deallocate (this%coord_z)
+        if (allocated(this%coord_time))                         deallocate (this%coord_time)
+        if (allocated(this%coord_lon))                          deallocate (this%coord_lon)
+        if (allocated(this%coord_lat))                          deallocate (this%coord_lat)
+        if (allocated(this%coord_z))                            deallocate (this%coord_z)
+        if (allocated(this%hybrid_vertical_coordinate_table))   deallocate (this%hybrid_vertical_coordinate_table)
 
         if (associated(this%finfo) .and. this%finfo%status == "w") then
-            if (this%zaxisID >= 0) then 
+            if (this%zaxisID >= 0) then
                 index = list_zaxisID%get_position(this%zaxisID)
                 if (index > 0) then
                     call zaxisDestroy(this%zaxisID)
                     call list_zaxisID%remove(index)
                 end if
             end if
-            if (this%gridID >= 0) then 
+            if (this%gridID >= 0) then
                 index = list_gridID%get_position(this%gridID)
                 if (index > 0) then
                     call gridDestroy(this%gridID)
@@ -2212,11 +2233,11 @@ contains
             call this%merged_var_parts%clear()
             deallocate(this%merged_var_parts)
         end if
-        
+
         ! is it a derived variable with subsections?
         if (allocated(this%parent_subscripts)) deallocate (this%parent_subscripts)
         if (associated(this%parent)) nullify (this%parent)
-        
+
         ! is there a pointer to a file?
         if (associated(this%finfo)) nullify (this%finfo)
     end subroutine
@@ -2336,12 +2357,16 @@ contains
             res%nlat        = this%nlat
             if (allocated(this%coord_z))        res%coord_z     = this%coord_z
             res%nzval       = this%nzval
+            if (allocated(this%hybrid_vertical_coordinate_table)) then
+                res%hybrid_vertical_coordinate_table = this%hybrid_vertical_coordinate_table
+                res%hybrid_vertical_coordinate_table_size = this%hybrid_vertical_coordinate_table_size
+            end if
         end if
         if (.not.present(copy_time) .or. (copy_time .eqv. .true.)) then
             if (allocated(this%coord_time)) res%coord_time  = this%coord_time
             res%ntime       = this%ntime
         end if
-        
+
         !copy attributes
         res%name                = this%name
         res%standard_name       = this%standard_name
@@ -2378,7 +2403,7 @@ contains
     !> @public
     !> @brief       Get the size of the underlying array in y-direction
     !> @param[in]   this        reference to the varinfo object, automatically set by fortran
-    !> @return      for most grid types, nlat is returned. 
+    !> @return      for most grid types, nlat is returned.
     function varinfo_get_y_size(this) result (res)
         class(varinfo) :: this
         integer :: res
@@ -2399,14 +2424,14 @@ contains
         !> @param[in]   this    reference to the varinfo object, automatically set by fortran
         !> @param[in]   year    the year of interest
         !$FP if (i == 2) !> @param[in]   month   the month of interest
-        !> @return      a list object which contains date objects 
+        !> @return      a list object which contains date objects
         function varinfo_get_dates_in(this &
                 ,year &
                 !$FP if (i == 2) ,month &
                 ) result (res)
             class(varinfo) :: this
             integer, intent(in) :: year
-            !$FP if (i == 2) integer, intent(in) :: month            
+            !$FP if (i == 2) integer, intent(in) :: month
             type(list) :: res
 
             ! local variables
@@ -2420,7 +2445,7 @@ contains
             do i = 1, size(this%coord_time)
                 dt = this%coord_time(i)
                 call dt%get(year=dt_year, month=dt_month)
-                if (dt_year == year & 
+                if (dt_year == year &
                     !$FP if (i == 2) .and. dt_month == month &
                     ) then
                     call res%add(dt, copy=.true.)
