@@ -171,6 +171,8 @@ module fplus_cdi_helper
         procedure, public :: get_dates_in_month => varinfo_get_dates_in_2
         !> @brief   Get all dates that belong to one year
         procedure, public :: get_dates_in_year => varinfo_get_dates_in_1
+        !> @brief   Get the lon and lat coordinates in 2d
+        procedure, public :: get_2d_coords => varinfo_get_2d_coords
     end type
 
     !list of public functions
@@ -2454,5 +2456,45 @@ contains
         end function
     !$FP end do
     !$FP end template
+
+    !> @public
+    !> @brief       get the coordinate arrays in 2d. if the original coordinates are only 1d, then 2d
+    !>              coordinates are created by copying of 1d coordinates
+    !> @param[in]   this    reference to the varinfo object, automatically set by fortran
+    !> @param[out]  lon2d   allocateable 2d array with longitudes
+    !> @param[out]  lat2d   allocateable 2d array with latitudes
+    subroutine varinfo_get_2d_coords(this, lon2d, lat2d)
+        class(varinfo) :: this
+        real(kind=8), dimension(:,:), allocatable :: lon2d, lat2d
+
+        ! local variables
+        integer :: i
+
+        ! check the size of the result arrays
+        !$FP do var = lon2d lat2d
+        if (allocated(${var})) then
+            if (size(${var},1) /= this%get_x_size() .or. size(${var},2) /= this%get_y_size()) then
+                deallocate(${var})
+                allocate(${var}(this%get_x_size(), this%get_y_size()))
+            end if
+        else
+            allocate(${var}(this%get_x_size(), this%get_y_size()))
+        end if
+        !$FP end do
+
+        ! if the original coordinates are already 2d, then just copy them
+        if (allocated(this%coord_lon2d) .and. allocated(this%coord_lat2d)) then
+            lon2d = this%coord_lon2d
+            lat2d = this%coord_lat2d
+        else
+            ! create 2d arrays by copying
+            do i = 1, this%get_x_size()
+                lat2d(i,:) = this%coord_lat
+            end do
+            do i = 1, this%get_y_size()
+                lon2d(:,i) = this%coord_lon
+            end do
+        end if
+    end subroutine
 
 end module fplus_cdi_helper

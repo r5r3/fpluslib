@@ -9,12 +9,13 @@ module fplus_array_tools_2
     !$FP interface template convolution2d
     !$FP interface template noise_sigma
     !$FP interface template signal_to_noise_ratio
+    !$FP interface template ensure_allocation
 
 contains
 
     !$FP numeric = {real (kind=4)} {real (kind=8)} {integer (kind=4)} {integer (kind=8)}
     !$FP numeric_kind = {4} {8} {4} {8}
-    
+
     !$FP template flip
         !$FP do i = 1, 4
             !> @public
@@ -54,7 +55,7 @@ contains
                 ! copy the input array in reverse order into an temporary array
                 n1 = size(array, 1)
                 n2 = size(array, 2)
-                if (dim == 1) then                
+                if (dim == 1) then
                     do i = 1, n2
                         call flip(array(:,i))
                     end do
@@ -78,8 +79,8 @@ contains
                 ${numeric(i)}, dimension(:) :: array
 
                 ! local variables
-                integer :: n, r, l 
-                ${numeric(i)} :: pivot, temp             
+                integer :: n, r, l
+                ${numeric(i)} :: pivot, temp
 
                 n = size(array)
                 if (n < 2) return
@@ -92,7 +93,7 @@ contains
                         l = l + 1
                     else if (array(r) > pivot) then
                         r = r - 1
-                    else 
+                    else
                         temp = array(l)
                         array(l) = array(r)
                         array(r) = temp
@@ -109,18 +110,18 @@ contains
     !$FP template convolution2d
         !$FP do i = 1, 4
             !> @public
-            !> @brief           linear 2d convolution 
+            !> @brief           linear 2d convolution
             !> @param[in]       input   input array
             !> @param[in]       kernel  the kernel to be applied
             !> @param[out]      result  the result array, same size as input
             subroutine convolution2d(input, kernel, result, fill_value)
                 ${numeric(i)}, dimension(:,:), intent(in) :: input, kernel
-                ${numeric(i)}, dimension(:,:), intent(out) :: result                
-                ${numeric(i)}, intent(in) :: fill_value                
+                ${numeric(i)}, dimension(:,:), intent(out) :: result
+                ${numeric(i)}, intent(in) :: fill_value
 
                 ! local variables
                 integer :: kCols, kRows, kCenterX, kCenterY, i, j, ii, jj, m, n, mm, nn, rows, cols
-                
+
                 ! sizes
                 kCols = size(kernel, 1)
                 kRows = size(kernel, 2)
@@ -169,7 +170,7 @@ contains
             subroutine noise_sigma(input, result, fill_value)
                 ${numeric(i)}, dimension(:,:), intent(in) :: input
                 real (kind=${numeric_kind(i)}), intent(out) :: result
-                ${numeric(i)}, intent(in) :: fill_value                
+                ${numeric(i)}, intent(in) :: fill_value
 
                 ! local variables
                 integer :: i, j, rows, cols
@@ -192,7 +193,7 @@ contains
                 nvalid = (cols-2)*(rows-2)
                 do i=2, rows-1                       ! rows
                     do j=2, cols-1                   ! columns
-                        if (conv(j,i) == fill_value) then 
+                        if (conv(j,i) == fill_value) then
                             nvalid = nvalid -1
                             cycle
                         end if
@@ -223,7 +224,7 @@ contains
             subroutine signal_to_noise_ratio(input, result, fill_value)
                 ${numeric(i)}, dimension(:,:), intent(in) :: input
                 real (kind=${numeric_kind(i)}), intent(out) :: result
-                ${numeric(i)}, intent(in) :: fill_value                
+                ${numeric(i)}, intent(in) :: fill_value
 
                 ! local variables
                 integer :: i, j, cols, rows
@@ -272,4 +273,33 @@ contains
         !$FP end do
     !$FP end template
 
+    !$FP template ensure_allocation
+        !$FP dims = {:} {:,:} {:,:,:} {:,:,:,:} {:,:,:,:,:}
+        !$FP sspec = {shp(1)} {shp(1),shp(2)} {shp(1),shp(2),shp(3)} {shp(1),shp(2),shp(3),shp(4)} {shp(1),shp(2),shp(3),shp(4),shp(5)}
+        !$FP do numtype = 1, 4
+        !$FP do ndims = 1, 5
+            !> @public
+            !> @brief           check the dimensions of an array and re-allocate it, if the dimensions don't match
+            !> @param[inout]    input   input array
+            !> @param[in]       shape   1d array with the desired shape
+            subroutine ensure_allocation(array, shp)
+                ${numeric(numtype)}, dimension(${dims(ndims)}), allocatable :: array
+                integer, dimension(${ndims}), intent(in) :: shp
+
+                ! local variables
+                integer, dimension(${ndims}) :: old_shp
+
+                if (.not.allocated(array)) then
+                    allocate(array(${sspec(ndims)}))
+                else
+                    old_shp = shape(array)
+                    if (any(old_shp .ne. shp)) then
+                        deallocate(array)
+                        allocate(array(${sspec(ndims)}))
+                    end if
+                end if
+            end subroutine
+        !$FP end do
+        !$FP end do
+    !$FP end template
 end module
