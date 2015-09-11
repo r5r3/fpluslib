@@ -1014,7 +1014,13 @@ contains
                     ! we only support lonlat and gaussian grids
                     info%gridtype = gridInqType(gridID)
                     if (info%gridtype /= GRID_LONLAT .and. info%gridtype /= GRID_GAUSSIAN .and. info%gridtype /= GRID_UNSTRUCTURED .and. info%gridtype /= GRID_CURVILINEAR) then
-                        call fplus_error_print("unsupported grid: " // trim(type_to_string(info%gridtype)), "new_fileinfo")
+                        if (res%nvars > 1) then
+                            call fplus_error_print("unsupported grid for variable " // trim(info%name) // ": " // trim(type_to_string(info%gridtype)), "new_fileinfo", FPLUS_WARN)
+                            deallocate(info)
+                            cycle
+                        else
+                            call fplus_error_print("unsupported grid: " // trim(type_to_string(info%gridtype)), "new_fileinfo")
+                        end if
                     end if
 
                     ! allocate the lon and lat coordinate arrays
