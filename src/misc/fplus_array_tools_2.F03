@@ -14,7 +14,7 @@ contains
 
     !$FP numeric = {real (kind=4)} {real (kind=8)} {integer (kind=4)} {integer (kind=8)}
     !$FP numeric_kind = {4} {8} {4} {8}
-    
+
     !$FP template flip
         !$FP do i = 1, 4
             !> @public
@@ -54,7 +54,7 @@ contains
                 ! copy the input array in reverse order into an temporary array
                 n1 = size(array, 1)
                 n2 = size(array, 2)
-                if (dim == 1) then                
+                if (dim == 1) then
                     do i = 1, n2
                         call flip(array(:,i))
                     end do
@@ -78,8 +78,8 @@ contains
                 ${numeric(i)}, dimension(:) :: array
 
                 ! local variables
-                integer :: n, r, l 
-                ${numeric(i)} :: pivot, temp             
+                integer :: n, r, l
+                ${numeric(i)} :: pivot, temp
 
                 n = size(array)
                 if (n < 2) return
@@ -92,7 +92,7 @@ contains
                         l = l + 1
                     else if (array(r) > pivot) then
                         r = r - 1
-                    else 
+                    else
                         temp = array(l)
                         array(l) = array(r)
                         array(r) = temp
@@ -109,18 +109,18 @@ contains
     !$FP template convolution2d
         !$FP do i = 1, 4
             !> @public
-            !> @brief           linear 2d convolution 
+            !> @brief           linear 2d convolution
             !> @param[in]       input   input array
             !> @param[in]       kernel  the kernel to be applied
             !> @param[out]      result  the result array, same size as input
             subroutine convolution2d(input, kernel, result, fill_value)
                 ${numeric(i)}, dimension(:,:), intent(in) :: input, kernel
-                ${numeric(i)}, dimension(:,:), intent(out) :: result                
-                ${numeric(i)}, intent(in) :: fill_value                
+                ${numeric(i)}, dimension(:,:), intent(out) :: result
+                ${numeric(i)}, intent(in) :: fill_value
 
                 ! local variables
                 integer :: kCols, kRows, kCenterX, kCenterY, i, j, ii, jj, m, n, mm, nn, rows, cols
-                
+
                 ! sizes
                 kCols = size(kernel, 1)
                 kRows = size(kernel, 2)
@@ -169,7 +169,7 @@ contains
             subroutine noise_sigma(input, result, fill_value)
                 ${numeric(i)}, dimension(:,:), intent(in) :: input
                 real (kind=${numeric_kind(i)}), intent(out) :: result
-                ${numeric(i)}, intent(in) :: fill_value                
+                ${numeric(i)}, intent(in) :: fill_value
 
                 ! local variables
                 integer :: i, j, rows, cols
@@ -192,7 +192,7 @@ contains
                 nvalid = (cols-2)*(rows-2)
                 do i=2, rows-1                       ! rows
                     do j=2, cols-1                   ! columns
-                        if (conv(j,i) == fill_value) then 
+                        if (conv(j,i) == fill_value) then
                             nvalid = nvalid -1
                             cycle
                         end if
@@ -220,14 +220,24 @@ contains
             !> @brief           estimate signal to noise ratio in 2d array based on Fast Noise Variance Estimation (IMMERKÆR 1996)
             !> @param[in]       input   input array
             !> @param[out]      result  SNR, real, precision is precision of input
-            subroutine signal_to_noise_ratio(input, result, fill_value)
+            !> @param[in]       fill_value  values used to indicate missing values
+            !> @param[in]       optional selection of calculation mode: 0=default => std_signal^2 / std_noise^2, 1 => mean/std_noise,
+            subroutine signal_to_noise_ratio(input, result, fill_value, mode)
                 ${numeric(i)}, dimension(:,:), intent(in) :: input
                 real (kind=${numeric_kind(i)}), intent(out) :: result
-                ${numeric(i)}, intent(in) :: fill_value                
+                ${numeric(i)}, intent(in) :: fill_value
+                integer, optional, intent(in) :: mode
 
                 ! local variables
-                integer :: i, j, cols, rows
+                integer :: i, j, cols, rows, mode_intern
                 real (kind=${numeric_kind(i)}) :: mean, stddev, nvalid, stddev_noise
+
+                ! select calculation mode
+                if (present(mode)) then
+                    mode_intern = mode
+                else
+                    mode_intern = 0
+                end if
 
                 ! sizes
                 cols = size(input, 1)
@@ -251,23 +261,26 @@ contains
                     mean = mean / nvalid
                 end if
                 ! second step standard deviation
-                stddev = 0
-                do i=1, rows
-                    do j=1, cols
-                        if (input(j,i) /= fill_value) then
-                            stddev = stddev + (input(j,i) - mean)**2
-                        end if
+                if (mode_intern == 0) then
+                    stddev = 0
+                    do i=1, rows
+                        do j=1, cols
+                            if (input(j,i) /= fill_value) then
+                                stddev = stddev + (input(j,i) - mean)**2
+                            end if
+                        end do
                     end do
-                end do
-                stddev = sqrt(stddev/nvalid)
+                    stddev = sqrt(stddev/nvalid)
+                end if
                 ! third step, estimate standard deviation of noise
                 call noise_sigma(input, stddev_noise, fill_value)
-                if (stddev_noise .eq. fill_value) then
+                if (stddev_noise .eq. fill_value .or. stddev_noise .eq. 0) then
                     result = fill_value
                     return
                 end if
                 ! calculate SNR
-                result = stddev_noise**2 / stddev**2
+                if (mode_intern == 1) result = mean / stddev_noise
+                if (mode_intern == 0) result = stddev**2 / stddev_noise**2
             end subroutine
         !$FP end do
     !$FP end template
