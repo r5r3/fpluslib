@@ -9,6 +9,7 @@ module fplus_array_tools_2
     !$FP interface template convolution2d
     !$FP interface template noise_sigma
     !$FP interface template signal_to_noise_ratio
+    !$FP interface template ensure_allocation
 
 contains
 
@@ -282,6 +283,36 @@ contains
                 if (mode_intern == 1) result = mean / stddev_noise
                 if (mode_intern == 0) result = stddev**2 / stddev_noise**2
             end subroutine
+        !$FP end do
+    !$FP end template
+
+    !$FP template ensure_allocation
+        !$FP dims = {:} {:,:} {:,:,:} {:,:,:,:} {:,:,:,:,:}
+        !$FP sspec = {shp(1)} {shp(1),shp(2)} {shp(1),shp(2),shp(3)} {shp(1),shp(2),shp(3),shp(4)} {shp(1),shp(2),shp(3),shp(4),shp(5)}
+        !$FP do numtype = 1, 4
+        !$FP do ndims = 1, 5
+            !> @public
+            !> @brief           check the dimensions of an array and re-allocate it, if the dimensions don't match
+            !> @param[inout]    input   input array
+            !> @param[in]       shape   1d array with the desired shape
+            subroutine ensure_allocation(array, shp)
+                ${numeric(numtype)}, dimension(${dims(ndims)}), allocatable :: array
+                integer, dimension(${ndims}), intent(in) :: shp
+
+                ! local variables
+                integer, dimension(${ndims}) :: old_shp
+
+                if (.not.allocated(array)) then
+                    allocate(array(${sspec(ndims)}))
+                else
+                    old_shp = shape(array)
+                    if (any(old_shp .ne. shp)) then
+                        deallocate(array)
+                        allocate(array(${sspec(ndims)}))
+                    end if
+                end if
+            end subroutine
+        !$FP end do
         !$FP end do
     !$FP end template
 

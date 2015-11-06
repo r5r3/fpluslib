@@ -2,11 +2,11 @@
 OS=@OS@
 DYLIBEXT=@DYLIBEXT@
 ifeq ($(OS),Darwin)
-	DYLIBFLAGS=-shared -install_name $(shell pwd)/lib/libfplus.$(DYLIBEXT) @LIBS@ @LDFLAGS@ 
-	LDFLAGS=-Llib -lfplus @LIBS@ @LDFLAGS@ 
+	DYLIBFLAGS=-shared -install_name "$(shell pwd)/lib/libfplus.$(DYLIBEXT)" @LIBS@ @LDFLAGS@ 
+	LDFLAGS=-Llib -lfplus @LIBS@ @LDFLAGS@
 else
-	DYLIBFLAGS=-shared @LIBS@ @LDFLAGS@ 
-	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfplus @LIBS@ @LDFLAGS@ 
+	DYLIBFLAGS=-shared @LIBS@ @LDFLAGS@
+	LDFLAGS=-Wl,-rpath=$(shell pwd)/lib -Llib -lfplus @LIBS@ @LDFLAGS@
 endif
 
 # select a compiler
@@ -14,12 +14,12 @@ FC=@FC@
 CC=@CC@
 CXX=@CXX@
 FCFLAGS=@FCFLAGS@ @FC_MODINC@include @FC_MODOUT@include -cpp
-CCFLAGS=@CFLAGS@ 
+CCFLAGS=@CFLAGS@
 
 # create a list of all objects
 SRCOBJ:=$(shell scripts/module_build_order.py --src src --obj build)
 
-# compile for debuging 
+# compile for debuging
 ifeq ($(FC),ifort)
 	FCDEBUG=-g -traceback -check bounds -O0
 	CCDEBUG=-g -O0
@@ -80,7 +80,7 @@ bin/test-up-2: testsrc/test-up-2.f90
 bin/%: build/%.o lib/libfplus.a
 	$(FC) $(FCFLAGS) -o $@ $(LDFLAGS) $?
 
-	
+
 # rule to compile fortran files
 build/%.o: src/%.f90
 	$(FC) $(FCFLAGS) -c -o $@ $<
@@ -109,4 +109,3 @@ build/%.o: testsrc/%.f90
 # clean up everything
 clean:
 	rm -rf bin build include lib doc/html
-
