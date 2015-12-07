@@ -244,7 +244,7 @@ contains
     !> @brief       returns an array of match objects
     !> @param[in]   this    reference to the regex object, automatically set by fortran
     !> @param[out]  res     an array of type match and dimension number of matches.
-    !> @todo        this subroutine should be a function, but there are problems with the 
+    !> @todo        this subroutine should be a function, but there are problems with the
     !>              ifort compiler. The returned array is not allocated.
     function regex_matches(this, string) result(res)
         class(regex) :: this
@@ -263,6 +263,7 @@ contains
 
         ! call the c wrapper of regexec
         this%error = C_regexec(this%prog, string // C_NULL_CHAR, str_size, beginnings, endings, nmatch, 0)
+        if (this%error /= 0) nmatch = 0
 
         ! create the match objects
         allocate(res(nmatch))
@@ -275,7 +276,7 @@ contains
         ! clean up beginnings and endings
         deallocate(beginnings)
         deallocate(endings)
-    end function 
+    end function
 
     !> @public
     !> @brief       release all internally used memory
@@ -291,7 +292,7 @@ contains
         !$FP do i = 1, 4
             !> @brief       get a numeric representation of the matched string
             !> @param[in]   this    reference to the match object, automatically set by fortran
-            !> @param[out]  value   the ${T} representation of the matched string. 
+            !> @param[out]  value   the ${T} representation of the matched string.
             subroutine match_get_numeric(this, value)
                 class(match) :: this
                 ${T(i)}, intent(out) :: value

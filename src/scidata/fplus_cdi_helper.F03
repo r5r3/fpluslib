@@ -692,18 +692,19 @@ contains
 
 
     !> @public
-    !> @brief       Get a list with all variables in a datapool. the same variable form different files if returned only once as merged variable
+    !> @brief       Get a list with all variables in a datapool. the same variable form different files is returned only once as merged variable
     !> @param[in]   this        reference to the datapool object, automatically set by fortran
     function datapool_get_all_variables(this) result (res)
         class(datapool) :: this
         type(list) :: res
 
         ! local variables
-        class(*), pointer :: onevar
+        class(varinfo), pointer :: onevar, onevar2
         class(*), pointer :: onefile
         class(varinfo), pointer :: tempvar
         type(list) :: allvars
-        integer :: fi, vi
+        integer :: fi, vi, vi2
+        logical :: found
 
         ! create an empty list for all variables in all files
         allvars = new_list()
@@ -716,30 +717,30 @@ contains
             select type (onefile)
                 type is (fileinfo)
                     do vi = 1, onefile%variables%length()
-                        onevar => onefile%variables%get(vi)
-                        select type (onevar)
-                            type is (varinfo)
-                                call allvars%add(onevar)
-                        end select
+                        onevar => dynamic_cast<class(varinfo),pointer>(onefile%variables%get(vi))
+                        ! don't add the same variable from multiple files more than once
+                        found = .false.
+                        do vi2 = 1, allvars%length()
+                            onevar2 => dynamic_cast<class(varinfo),pointer>(allvars%get(vi2))
+                            if (onevar%name == onevar2%name .and. onevar%code == onevar2%code .and. onevar%standard_name == onevar2%standard_name .and. onevar%zaxistype == onevar2%zaxistype) then
+                                found = .true.
+                                exit
+                            end if
+                        end do
+                        if (.not.found) then
+                            call allvars%add(onevar)
+                        end if
                     end do
             end select
         end do
 
         ! loop over all variables to figure out if some of them could be merged
         do while (allvars%length() > 0)
-            onevar => allvars%get(1)
-            select type (onevar)
-                type is (varinfo)
-                    ! get this variable from the pool with the get funciton, that will merge if needed
-                    tempvar => this%get_variable(name=onevar%name, code=onevar%code, std_name=onevar%standard_name, zaxis=onevar%zaxistype)
-                    if (allocated(tempvar%merged_var_parts)) then
-                        call fplus_error_print("funciton not yet implemented for multiple files", "datapool%get_all_variables", FPLUS_ERR)
-                    else
-                        ! this variable if not merged. remove it from the list of all vars and add it to the result list
-                        call allvars%remove(1)
-                        call res%add(tempvar)
-                    end if
-            end select
+            onevar => dynamic_cast<class(varinfo),pointer>(allvars%get(1))
+            ! get this variable from the pool with the get function, that will merge if needed
+            tempvar => this%get_variable(name=onevar%name, code=onevar%code, std_name=onevar%standard_name, zaxis=onevar%zaxistype)
+            call allvars%remove(1)
+            call res%add(tempvar)
         end do
 
         ! clean up
