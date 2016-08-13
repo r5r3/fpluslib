@@ -119,6 +119,25 @@ AC_ARG_WITH([grib_api],
             ],
             [with_grib_api=no])
 
+AC_ARG_WITH([udunits2],
+            [AS_HELP_STRING([--with-udunits2],
+              [this parameter is needed when udunits2 is not installed in a default location @<:@default=no@:>@])],
+            [
+                AS_VAR_IF([with_udunits2], [yes], 
+                    [],
+                    [
+                        AS_VAR_APPEND([LDFLAGS], [" -L$with_udunits2/lib"])
+                        AS_VAR_APPEND([CFLAGS], [" -I$with_udunits2/include"])
+                        AS_VAR_IF([OS], [Linux], 
+                            [
+                                AS_VAR_APPEND([LDFLAGS], [" -Wl,-rpath=$with_udunits2/lib"])
+                            ], 
+                            [])             
+                    ]
+                )
+            ],
+            [with_udunits2=no])
+
 AC_ARG_WITH([jasper],
             [AS_HELP_STRING([--with-jasper],
               [this parameter is needed when grib_api was compiled with jasper support @<:@default=no@:>@])],
@@ -234,7 +253,7 @@ AS_IF([test "x$with_cdi" != xno],
             [
                 AC_MSG_FAILURE([--with-cdi was given, but test for cdi failed])
             ], 
-            []
+            [-lnetcdf]
         )
     ]
 )

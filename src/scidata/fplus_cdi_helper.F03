@@ -430,6 +430,7 @@ contains
                 end if
                 if (present(std_name)) then
                     if (trim(std_name) == trim(varptr%standard_name) .and. len_trim(std_name) > 0 .and. len_trim(varptr%standard_name) > 0) matching_qualifier = matching_qualifier + 1
+                    if (len_trim(std_name) == 0 .and. len_trim(varptr%standard_name) == 0) matching_qualifier = matching_qualifier + 1
                 end if
                 if (matching_qualifier < n_have_to_match) cycle
                 ! add the variable to the list of matches
@@ -700,7 +701,7 @@ contains
 
         ! local variables
         class(varinfo), pointer :: onevar, onevar2
-        class(*), pointer :: onefile
+        class(*), pointer :: onefile, dummy
         class(varinfo), pointer :: tempvar
         type(list) :: allvars
         integer :: fi, vi, vi2
@@ -717,11 +718,19 @@ contains
             select type (onefile)
                 type is (fileinfo)
                     do vi = 1, onefile%variables%length()
-                        onevar => dynamic_cast<class(varinfo),pointer>(onefile%variables%get(vi))
+                        dummy => onefile%variables%get(vi)
+                        select type(dummy)
+                            class is (varinfo)
+                                onevar => dummy
+                        end select
                         ! don't add the same variable from multiple files more than once
                         found = .false.
                         do vi2 = 1, allvars%length()
-                            onevar2 => dynamic_cast<class(varinfo),pointer>(allvars%get(vi2))
+                            dummy => allvars%get(vi2)
+                            select type(dummy)
+                                class is (varinfo)
+                                    onevar2 => dummy
+                            end select
                             if (onevar%name == onevar2%name .and. onevar%code == onevar2%code .and. onevar%standard_name == onevar2%standard_name .and. onevar%zaxistype == onevar2%zaxistype) then
                                 found = .true.
                                 exit
@@ -736,9 +745,13 @@ contains
 
         ! loop over all variables to figure out if some of them could be merged
         do while (allvars%length() > 0)
-            onevar => dynamic_cast<class(varinfo),pointer>(allvars%get(1))
+            dummy => allvars%get(1)
+            select type(dummy)
+                class is (varinfo)
+                    onevar => dummy
+            end select
             ! get this variable from the pool with the get function, that will merge if needed
-            tempvar => this%get_variable(name=onevar%name, code=onevar%code, std_name=onevar%standard_name, zaxis=onevar%zaxistype)
+            tempvar => this%get_variable(name=onevar%name, code=onevar%code, std_name=onevar%standard_name, zaxis=onevar%zaxistype, all_match=.true.)
             call allvars%remove(1)
             call res%add(tempvar)
         end do

@@ -645,6 +645,7 @@ ac_user_opts='
 enable_option_checking
 with_cdi
 with_grib_api
+with_udunits2
 with_jasper
 with_hdf5
 with_szip
@@ -1273,6 +1274,8 @@ Optional Packages:
   --with-cdi              support for climat data interface [default=no]
   --with-grib_api         this parameter is needed when cdi was compiled with
                           grib api support [default=no]
+  --with-udunits2         this parameter is needed when udunits2 is not
+                          installed in a default location [default=no]
   --with-jasper           this parameter is needed when grib_api was compiled
                           with jasper support [default=no]
   --with-hdf5             this parameter is needed when cdi was compiled with
@@ -3534,6 +3537,30 @@ fi
 
 
 
+# Check whether --with-udunits2 was given.
+if test "${with_udunits2+set}" = set; then :
+  withval=$with_udunits2;
+                if test "x$with_udunits2" = xyes; then :
+
+else
+
+                        as_fn_append LDFLAGS " -L$with_udunits2/lib"
+                        as_fn_append CFLAGS " -I$with_udunits2/include"
+                        if test "x$OS" = xLinux; then :
+
+                                as_fn_append LDFLAGS " -Wl,-rpath=$with_udunits2/lib"
+
+fi
+
+
+fi
+
+else
+  with_udunits2=no
+fi
+
+
+
 # Check whether --with-jasper was given.
 if test "${with_jasper+set}" = set; then :
   withval=$with_jasper;
@@ -3853,7 +3880,7 @@ if ${ac_cv_lib_cdi_vlistCreate+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lcdi
+LIBS="-lcdi -lnetcdf
          $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
